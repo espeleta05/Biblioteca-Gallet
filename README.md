@@ -134,6 +134,12 @@ Los hashes incluidos son únicamente datos de demostración. La autenticación r
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
+├── components/
+│   ├── CatalogViews.tsx
+│   ├── Dashboard.tsx
+│   ├── Icon.tsx
+│   ├── Modal.tsx
+│   └── types.ts
 ├── baseDeDatos.sql
 ├── datos.sql
 ├── consultas.sql
