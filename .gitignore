@@ -1,0 +1,33 @@
+# Dependencias
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Variables de entorno
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de depuración
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Archivos temporales de TypeScript
+*.tsbuildinfo
+
+# Cobertura y pruebas
+coverage/
+
