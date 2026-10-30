@@ -4,7 +4,7 @@ export type User = {
   id: string;
   name: string;
   identifier: string;
-  role: "Alumno" | "Profesor" | "Bibliotecario";
+  role: "Administrador" | "Alumno" | "Profesor" | "Bibliotecario";
   status: "Activo" | "Suspendido";
   email: string;
 };

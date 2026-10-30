@@ -30,16 +30,16 @@ VALUES
     (4, 3)
 ON CONFLICT DO NOTHING;
 
--- Hashes de demostración. En producción deben reemplazarse por hashes
--- generados por el backend con bcrypt/Argon2; nunca guardar contraseñas planas.
+-- El primer usuario es el administrador inicial: admin / 1234.
+-- Las contraseñas se almacenan con scrypt; nunca se guardan en texto plano.
 INSERT INTO CREDENCIALES
     (id_credencial, id_rol, matricula_nomina, contrasena_hash, estatus)
 VALUES
-    (1, 1, 'ADM-0001', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Activa'),
-    (2, 2, 'B-0041', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Activa'),
-    (3, 3, 'A01724531', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Activa'),
-    (4, 3, 'A01983012', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Activa'),
-    (5, 4, 'P01482', '$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy', 'Activa')
+    (1, 1, 'admin', 'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838', 'Activa'),
+    (2, 2, 'B-0041', 'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838', 'Activa'),
+    (3, 3, 'A01724531', 'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838', 'Activa'),
+    (4, 3, 'A01983012', 'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838', 'Activa'),
+    (5, 4, 'P01482', 'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838', 'Activa')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO PERSONAL_BIBLIOTECA

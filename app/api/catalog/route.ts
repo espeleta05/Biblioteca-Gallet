@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getSession, hashPassword } from "../../../lib/auth";
 import { pool } from "../../../lib/db";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,7 @@ type UserPayload = {
   identifier: string;
   email: string;
   role: "Alumno" | "Profesor" | "Bibliotecario";
+  password: string;
 };
 
 type BookPayload = {
@@ -28,11 +30,19 @@ function errorResponse(error: unknown) {
 }
 
 export async function PATCH(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   const body = await request.json().catch(() => null) as
     | { resource?: "user" | "book"; id?: string; data?: Partial<UserPayload & BookPayload> }
     | null;
   if (!body?.resource || !body.id || !body.data) {
     return NextResponse.json({ error: "Faltan datos para editar el registro." }, { status: 400 });
+  }
+  if (body.resource === "user" && session.role !== "Administrador") {
+    return NextResponse.json({ error: "Solo el administrador puede gestionar usuarios." }, { status: 403 });
+  }
+  if (body.resource === "book" && !["Administrador", "Bibliotecario"].includes(session.role)) {
+    return NextResponse.json({ error: "No tienes permisos para gestionar libros." }, { status: 403 });
   }
   const client = await pool.connect();
   try {
@@ -92,8 +102,16 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   const body = await request.json().catch(() => null) as { resource?: "user" | "book"; id?: string } | null;
   if (!body?.resource || !body.id) return NextResponse.json({ error: "Faltan datos para eliminar." }, { status: 400 });
+  if (body.resource === "user" && session.role !== "Administrador") {
+    return NextResponse.json({ error: "Solo el administrador puede gestionar usuarios." }, { status: 403 });
+  }
+  if (body.resource === "book" && !["Administrador", "Bibliotecario"].includes(session.role)) {
+    return NextResponse.json({ error: "No tienes permisos para gestionar libros." }, { status: 403 });
+  }
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -115,9 +133,11 @@ export async function DELETE(request: Request) {
 }
 
 export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   try {
     const [users, books, currentUser, inventory, activity] = await Promise.all([
-      pool.query(`
+      session.role === "Administrador" ? pool.query(`
         SELECT
           c.id_credencial,
           c.matricula_nomina AS identifier,
@@ -131,7 +151,7 @@ export async function GET() {
         LEFT JOIN PROFESORES p ON p.id_credencial = c.id_credencial
         LEFT JOIN PERSONAL_BIBLIOTECA b ON b.id_credencial = c.id_credencial
         ORDER BY c.id_credencial
-      `),
+      `) : Promise.resolve({ rows: [] }),
       pool.query(`
         SELECT
           l.id_libro AS id,
@@ -157,14 +177,7 @@ export async function GET() {
         GROUP BY l.id_libro, l.titulo, l.isbn, t.nombre_tema, l.tipo_uso, l.edicion, l.paginas, l.precio_ultima_compra_usd, l.id_tema
         ORDER BY l.titulo
       `),
-      pool.query(`
-        SELECT
-          COALESCE(p.nombre_completo, 'Bibliotecario') AS name,
-          COALESCE(p.puesto, 'Bibliotecario') AS role
-        FROM PERSONAL_BIBLIOTECA p
-        ORDER BY p.id_personal
-        LIMIT 1
-      `),
+      Promise.resolve({ rows: [{ name: session.name, role: session.role }] }),
       pool.query(`
         SELECT COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE estado = 'Disponible')::int AS available,
@@ -196,7 +209,7 @@ export async function GET() {
         name: user.name ?? "Usuario sin perfil",
         identifier: user.identifier,
         email: user.email,
-        role: user.nombre_rol === "Administrador" ? "Bibliotecario" : user.nombre_rol,
+        role: user.nombre_rol,
         status: user.estatus === "Activa" ? "Activo" : "Suspendido",
       })),
       books: books.rows.map((book) => ({
@@ -225,12 +238,20 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   const body = await request.json().catch(() => null) as
     | { resource?: "user" | "book"; data?: UserPayload | BookPayload }
     | null;
 
   if (!body?.resource || !body.data) {
     return NextResponse.json({ error: "La solicitud no tiene un recurso válido." }, { status: 400 });
+  }
+  if (body.resource === "user" && session.role !== "Administrador") {
+    return NextResponse.json({ error: "Solo el administrador puede crear usuarios." }, { status: 403 });
+  }
+  if (body.resource === "book" && !["Administrador", "Bibliotecario"].includes(session.role)) {
+    return NextResponse.json({ error: "No tienes permisos para crear libros." }, { status: 403 });
   }
 
   const client = await pool.connect();
@@ -239,7 +260,7 @@ export async function POST(request: Request) {
 
     if (body.resource === "user") {
       const data = body.data as UserPayload;
-      if (!data.name || !data.identifier || !data.email || !["Alumno", "Profesor", "Bibliotecario"].includes(data.role)) {
+      if (!data.name || !data.identifier || !data.email || !data.password || !["Alumno", "Profesor", "Bibliotecario"].includes(data.role)) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Completa todos los datos del usuario." }, { status: 400 });
       }
@@ -253,7 +274,7 @@ export async function POST(request: Request) {
       const credential = await client.query(
         `INSERT INTO CREDENCIALES (id_rol, matricula_nomina, contrasena_hash)
          VALUES ($1, $2, $3) RETURNING id_credencial`,
-        [role.rows[0].id_rol, data.identifier, "PENDIENTE_CAMBIAR_CON_HASH"],
+        [role.rows[0].id_rol, data.identifier, hashPassword(data.password)],
       );
       const credentialId = credential.rows[0].id_credencial;
 

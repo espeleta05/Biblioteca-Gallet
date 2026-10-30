@@ -62,6 +62,14 @@ npm start
 
 La aplicación consulta PostgreSQL mediante las rutas `/api/catalog`. Los nuevos usuarios y libros se guardan en la base de datos y permanecen después de reiniciar el servidor. Si PostgreSQL no está disponible, la interfaz muestra el error de conexión en lugar de ocultarlo.
 
+### Inicio de sesión y permisos
+
+La aplicación requiere iniciar sesión. El administrador inicial es `admin` con contraseña `1234`.
+
+- El administrador puede consultar y gestionar usuarios.
+- El administrador y el bibliotecario pueden consultar y gestionar libros.
+- Al crear un usuario se define su contraseña; un bibliotecario nuevo puede iniciar sesión inmediatamente con su matrícula/nómina y contraseña.
+
 ## Configurar la base de datos
 
 1. Crea una base de datos vacía desde el usuario administrador:
@@ -98,13 +106,13 @@ Los registros de `datos.sql` incluyen:
 
 | Tipo | Identificador | Nombre |
 |---|---|---|
-| Administrador | `ADM-0001` | Administrador SIGEB |
+| Administrador | `admin` | Administrador SIGEB |
 | Bibliotecario | `B-0041` | Mariana Torres |
 | Alumna | `A01724531` | Ana Sofía Martínez |
 | Alumno | `A01983012` | Luis Hernández |
 | Profesor | `P01482` | Dr. Carlos Ramírez |
 
-Los hashes incluidos son únicamente datos de demostración. La autenticación real deberá implementarse en el backend utilizando bcrypt o Argon2 y variables de entorno para las credenciales.
+Las contraseñas de demostración se almacenan como hashes scrypt y la sesión se conserva en una cookie HTTP-only firmada.
 
 ## Alcance actual
 
