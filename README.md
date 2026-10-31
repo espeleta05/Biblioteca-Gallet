@@ -62,6 +62,12 @@ npm start
 
 La aplicación consulta PostgreSQL mediante las rutas `/api/catalog`. Los nuevos usuarios y libros se guardan en la base de datos y permanecen después de reiniciar el servidor. Si PostgreSQL no está disponible, la interfaz muestra el error de conexión en lugar de ocultarlo.
 
+La sección **Actividad reciente** se alimenta de la tabla `ACTIVIDAD_SISTEMA` y registra altas, ediciones y eliminaciones de usuarios y libros.
+
+Al registrar un libro, el sistema asigna automáticamente un ISBN-13 único. Al editarlo, el ISBN puede conservarse o cambiarse manualmente, siempre que tenga 10 o 13 dígitos y no esté repetido.
+
+También se evita registrar dos veces el mismo libro: se compara el título y el nombre del autor sin distinguir mayúsculas, minúsculas o espacios adicionales.
+
 ### Inicio de sesión y permisos
 
 La aplicación requiere iniciar sesión. El administrador inicial es `admin` con contraseña `1234`.

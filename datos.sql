@@ -43,9 +43,9 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 INSERT INTO PERSONAL_BIBLIOTECA
-    (id_personal, id_credencial, nomina, nombre_completo, puesto)
+    (id_personal, id_credencial, nomina, nombre_completo, correo_institucional, puesto)
 VALUES
-    (1, 2, 'B-0041', 'Mariana Torres', 'Bibliotecaria')
+    (1, 2, 'B-0041', 'Mariana Torres', NULL, 'Bibliotecaria')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO ALUMNOS

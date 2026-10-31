@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { randomInt } from "crypto";
 import { getSession, hashPassword } from "../../../lib/auth";
 import { pool } from "../../../lib/db";
 
@@ -15,17 +16,30 @@ type UserPayload = {
 type BookPayload = {
   title: string;
   author: string;
-  isbn: string;
+  isbn?: string;
   category: string;
   copies: number;
   location: string;
 };
+
+function generateIsbn13() {
+  const body = `978${String(randomInt(0, 1000000000)).padStart(9, "0")}`;
+  const checksum = body.split("").reduce((sum, digit, index) => sum + Number(digit) * (index % 2 === 0 ? 1 : 3), 0);
+  return `${body}${(10 - (checksum % 10)) % 10}`;
+}
 
 function errorResponse(error: unknown) {
   console.error("Error en API de catálogo:", error);
   return NextResponse.json(
     { error: "No fue posible completar la operación con PostgreSQL." },
     { status: 500 },
+  );
+}
+
+async function logActivity(client: { query: (text: string, values?: unknown[]) => Promise<unknown> }, type: string, title: string, detail: string) {
+  await client.query(
+    "INSERT INTO ACTIVIDAD_SISTEMA (tipo, titulo, detalle) VALUES ($1, $2, $3)",
+    [type, title, detail],
   );
 }
 
@@ -49,29 +63,57 @@ export async function PATCH(request: Request) {
     await client.query("BEGIN");
     if (body.resource === "user") {
       const data = body.data as Partial<UserPayload>;
-      const credential = await client.query("SELECT id_rol FROM CREDENCIALES WHERE id_credencial = $1", [body.id]);
+      const credential = await client.query(`
+        SELECT c.id_rol, r.nombre_rol
+        FROM CREDENCIALES c
+        JOIN ROLES r ON r.id_rol = c.id_rol
+        WHERE c.id_credencial = $1
+      `, [body.id]);
       if (!credential.rowCount) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Usuario no encontrado." }, { status: 404 });
       }
       const role = await client.query("SELECT id_rol FROM ROLES WHERE nombre_rol = $1", [data.role]);
+      if (!role.rowCount) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "El rol seleccionado no existe." }, { status: 400 });
+      }
       await client.query(
         "UPDATE CREDENCIALES SET matricula_nomina = COALESCE($1, matricula_nomina), id_rol = COALESCE($2, id_rol) WHERE id_credencial = $3",
         [data.identifier, role.rows[0]?.id_rol, body.id],
       );
-      if (data.role === "Alumno") {
+      if (credential.rows[0].nombre_rol === "Alumno") {
         await client.query("UPDATE ALUMNOS SET nombre_completo = COALESCE($1, nombre_completo), correo_institucional = COALESCE($2, correo_institucional), matricula = COALESCE($3, matricula) WHERE id_credencial = $4", [data.name, data.email, data.identifier, body.id]);
-      } else if (data.role === "Profesor") {
+      } else if (credential.rows[0].nombre_rol === "Profesor") {
         await client.query("UPDATE PROFESORES SET nombre_completo = COALESCE($1, nombre_completo), correo_institucional = COALESCE($2, correo_institucional), nomina = COALESCE($3, nomina) WHERE id_credencial = $4", [data.name, data.email, data.identifier, body.id]);
-      } else {
-        await client.query("UPDATE PERSONAL_BIBLIOTECA SET nombre_completo = COALESCE($1, nombre_completo), nomina = COALESCE($2, nomina) WHERE id_credencial = $3", [data.name, data.identifier, body.id]);
+      } else if (credential.rows[0].nombre_rol === "Bibliotecario") {
+        await client.query("UPDATE PERSONAL_BIBLIOTECA SET nombre_completo = COALESCE($1, nombre_completo), correo_institucional = COALESCE($2, correo_institucional), nomina = COALESCE($3, nomina) WHERE id_credencial = $4", [data.name, data.email, data.identifier, body.id]);
+      } else if (data.email) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "El esquema actual no tiene una columna de correo para administradores." }, { status: 400 });
       }
+      await logActivity(client, "users", "Usuario actualizado", `${data.name || body.id} · ${data.identifier || "sin cambio de usuario"}`);
     } else {
       const data = body.data as Partial<BookPayload>;
       const book = await client.query("SELECT id_libro, id_tema FROM LIBROS WHERE id_libro = $1", [body.id]);
       if (!book.rowCount) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Libro no encontrado." }, { status: 404 });
+      }
+      const isbn = data.isbn?.trim();
+      if (isbn && !/^\d{10}(\d{3})?$/.test(isbn)) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "El ISBN debe contener exactamente 10 o 13 dígitos." }, { status: 400 });
+      }
+      if (isbn) {
+        const duplicate = await client.query(
+          "SELECT 1 FROM LIBROS WHERE isbn = $1 AND id_libro <> $2",
+          [isbn, body.id],
+        );
+        if (duplicate.rowCount) {
+          await client.query("ROLLBACK");
+          return NextResponse.json({ error: "Ya existe otro libro con ese ISBN." }, { status: 409 });
+        }
       }
       let topicId = book.rows[0].id_tema;
       if (data.category) {
@@ -83,13 +125,14 @@ export async function PATCH(request: Request) {
       }
       await client.query(
         "UPDATE LIBROS SET titulo = COALESCE($1, titulo), isbn = COALESCE($2, isbn), id_tema = $3 WHERE id_libro = $4",
-        [data.title, data.isbn, topicId, body.id],
+        [data.title, isbn, topicId, body.id],
       );
       if (data.author) {
         await client.query("DELETE FROM LIBRO_AUTOR WHERE id_libro = $1", [body.id]);
         const author = await client.query("INSERT INTO AUTORES (nombre_autor) VALUES ($1) RETURNING id_autor", [data.author]);
         await client.query("INSERT INTO LIBRO_AUTOR (id_libro, id_autor) VALUES ($1, $2)", [body.id, author.rows[0].id_autor]);
       }
+      await logActivity(client, "book", "Libro actualizado", data.title || body.id);
     }
     await client.query("COMMIT");
     return NextResponse.json({ ok: true });
@@ -116,11 +159,22 @@ export async function DELETE(request: Request) {
   try {
     await client.query("BEGIN");
     if (body.resource === "user") {
+      const current = await client.query(`
+        SELECT COALESCE(a.nombre_completo, p.nombre_completo, b.nombre_completo, c.matricula_nomina) AS name
+        FROM CREDENCIALES c
+        LEFT JOIN ALUMNOS a ON a.id_credencial = c.id_credencial
+        LEFT JOIN PROFESORES p ON p.id_credencial = c.id_credencial
+        LEFT JOIN PERSONAL_BIBLIOTECA b ON b.id_credencial = c.id_credencial
+        WHERE c.id_credencial = $1
+      `, [body.id]);
       await client.query("DELETE FROM CREDENCIALES WHERE id_credencial = $1", [body.id]);
+      await logActivity(client, "users", "Usuario eliminado", current.rows[0]?.name || body.id);
     } else {
+      const current = await client.query("SELECT titulo FROM LIBROS WHERE id_libro = $1", [body.id]);
       await client.query("DELETE FROM LIBRO_AUTOR WHERE id_libro = $1", [body.id]);
       await client.query("DELETE FROM EJEMPLARES WHERE id_libro = $1", [body.id]);
       await client.query("DELETE FROM LIBROS WHERE id_libro = $1", [body.id]);
+      await logActivity(client, "book", "Libro eliminado", current.rows[0]?.titulo || body.id);
     }
     await client.query("COMMIT");
     return NextResponse.json({ ok: true });
@@ -144,7 +198,7 @@ export async function GET() {
           c.estatus,
           r.nombre_rol,
           COALESCE(a.nombre_completo, p.nombre_completo, b.nombre_completo) AS name,
-          COALESCE(a.correo_institucional, p.correo_institucional, '') AS email
+          COALESCE(a.correo_institucional, p.correo_institucional, b.correo_institucional, '') AS email
         FROM CREDENCIALES c
         JOIN ROLES r ON r.id_rol = c.id_rol
         LEFT JOIN ALUMNOS a ON a.id_credencial = c.id_credencial
@@ -185,21 +239,11 @@ export async function GET() {
         FROM EJEMPLARES
       `),
       pool.query(`
-        SELECT *
-        FROM (
-          SELECT 'users' AS icon, 'Nuevo usuario registrado' AS title,
-            COALESCE(a.nombre_completo, p.nombre_completo, b.nombre_completo) AS detail,
-            c.id_credencial::text AS event_id
-          FROM CREDENCIALES c
-          LEFT JOIN ALUMNOS a ON a.id_credencial = c.id_credencial
-          LEFT JOIN PROFESORES p ON p.id_credencial = c.id_credencial
-          LEFT JOIN PERSONAL_BIBLIOTECA b ON b.id_credencial = c.id_credencial
-          UNION ALL
-          SELECT 'book', 'Libro agregado al catálogo', l.titulo, l.id_libro::text
-          FROM LIBROS l
-        ) activity
-        ORDER BY event_id DESC
-        LIMIT 3
+        SELECT tipo AS icon, titulo AS title, detalle AS detail,
+          id_actividad::text AS event_id
+        FROM ACTIVIDAD_SISTEMA
+        ORDER BY fecha_hora DESC, id_actividad DESC
+        LIMIT 5
       `),
     ]);
 
@@ -294,12 +338,40 @@ export async function POST(request: Request) {
           [credentialId, data.identifier, data.name, "Bibliotecario"],
         );
       }
+      await logActivity(client, "users", "Usuario registrado", `${data.name} · ${data.identifier}`);
     } else {
       const data = body.data as BookPayload;
       const copies = Number(data.copies);
-      if (!data.title || !data.author || !data.isbn || !data.category || !data.location || !Number.isInteger(copies) || copies < 1) {
+      if (!data.title || !data.author || !data.category || !data.location || !Number.isInteger(copies) || copies < 1) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Completa todos los datos del libro." }, { status: 400 });
+      }
+      let isbn = generateIsbn13();
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const duplicate = await client.query("SELECT 1 FROM LIBROS WHERE isbn = $1", [isbn]);
+        if (!duplicate.rowCount) break;
+        isbn = generateIsbn13();
+      }
+      const duplicate = await client.query("SELECT 1 FROM LIBROS WHERE isbn = $1", [isbn]);
+      if (duplicate.rowCount) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "No fue posible asignar un ISBN único. Intenta nuevamente." }, { status: 409 });
+      }
+      const existingBook = await client.query(`
+        SELECT l.titulo
+        FROM LIBROS l
+        JOIN LIBRO_AUTOR la ON la.id_libro = l.id_libro
+        JOIN AUTORES a ON a.id_autor = la.id_autor
+        WHERE LOWER(TRIM(l.titulo)) = LOWER(TRIM($1))
+          AND LOWER(TRIM(a.nombre_autor)) = LOWER(TRIM($2))
+        LIMIT 1
+      `, [data.title, data.author]);
+      if (existingBook.rowCount) {
+        await client.query("ROLLBACK");
+        return NextResponse.json(
+          { error: `El libro "${existingBook.rows[0].titulo}" de ${data.author} ya existe en el catálogo.` },
+          { status: 409 },
+        );
       }
 
       const editorial = await client.query(
@@ -313,23 +385,32 @@ export async function POST(request: Request) {
          RETURNING id_tema`,
         [data.category],
       );
-      const author = await client.query(
-        "INSERT INTO AUTORES (nombre_autor) VALUES ($1) RETURNING id_autor",
+      const existingAuthor = await client.query(
+        "SELECT id_autor FROM AUTORES WHERE LOWER(TRIM(nombre_autor)) = LOWER(TRIM($1)) LIMIT 1",
         [data.author],
       );
+      const authorId = existingAuthor.rows[0]?.id_autor ?? (await client.query(
+        "INSERT INTO AUTORES (nombre_autor) VALUES ($1) RETURNING id_autor",
+        [data.author.trim()],
+      )).rows[0]?.id_autor;
+      if (!authorId) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "No fue posible registrar el autor." }, { status: 400 });
+      }
       await client.query(
         `INSERT INTO LIBROS (id_libro, isbn, titulo, id_editorial, id_tema, tipo_uso)
          VALUES ($1, $1, $2, $3, $4, 'General')`,
-        [data.isbn, data.title, editorial.rows[0].id_editorial, topic.rows[0].id_tema],
+        [isbn, data.title, editorial.rows[0].id_editorial, topic.rows[0].id_tema],
       );
-      await client.query("INSERT INTO LIBRO_AUTOR (id_libro, id_autor) VALUES ($1, $2)", [data.isbn, author.rows[0].id_autor]);
+      await client.query("INSERT INTO LIBRO_AUTOR (id_libro, id_autor) VALUES ($1, $2)", [isbn, authorId]);
       for (let index = 1; index <= copies; index += 1) {
         await client.query(
           `INSERT INTO EJEMPLARES (id_libro, clave_ejemplar, estado, piso, area, pasillo, estante)
            VALUES ($1, $2, 'Disponible', $3, 'General', 'A', $4)`,
-          [data.isbn, `${data.isbn}-${String(index).padStart(3, "0")}`, data.location.split(" · ")[0], data.location.split("-").pop() ?? "01"],
+          [isbn, `${isbn}-${String(index).padStart(3, "0")}`, data.location.split(" · ")[0], data.location.split("-").pop() ?? "01"],
         );
       }
+      await logActivity(client, "book", "Libro agregado al catálogo", data.title);
     }
 
     await client.query("COMMIT");
