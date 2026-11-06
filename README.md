@@ -75,6 +75,7 @@ La aplicación requiere iniciar sesión. El administrador inicial es `admin` con
 - El administrador puede consultar y gestionar usuarios.
 - El administrador y el bibliotecario pueden consultar y gestionar libros.
 - Al crear un usuario se define su contraseña; un bibliotecario nuevo puede iniciar sesión inmediatamente con su matrícula/nómina y contraseña.
+- Los usuarios nuevos creados desde Gestión de usuarios únicamente pueden ser bibliotecarios.
 
 ## Configurar la base de datos
 

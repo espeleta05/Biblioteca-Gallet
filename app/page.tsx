@@ -13,6 +13,8 @@ type Notice = { message: string; type: "success" | "error" };
 export default function Page() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [mobileView, setMobileView] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [view, setView] = useState<View>("inicio");
   const [users, setUsers] = useState<User[]>([]);
   const [books, setBooks] = useState<Book[]>([]);
@@ -40,18 +42,24 @@ export default function Page() {
   useEffect(() => {
     fetch("/api/auth").then((response) => response.json()).then((result) => {
       setSession(result.session);
+      if (result.session?.role === "Alumno" || result.session?.role === "Profesor") setView("buscar");
       setAuthLoading(false);
       if (result.session) void loadCatalog();
     }).catch(() => { setNotice({ message: "No fue posible comprobar la sesión.", type: "error" }); setAuthLoading(false); });
   }, []);
 
   const navigate = (nextView: View) => {
+    if ((session?.role === "Alumno" || session?.role === "Profesor") && nextView !== "buscar") {
+      setView("buscar");
+      setNotice({ message: "Tu cuenta solo tiene acceso a la búsqueda de libros.", type: "error" });
+      return;
+    }
     if (nextView === "usuarios" && session?.role !== "Administrador") {
       setView("inicio");
       setNotice({ message: "Solo el administrador puede gestionar usuarios.", type: "error" });
       return;
     }
-    setView(nextView); setQuery(""); setNotice(null);
+    setView(nextView); setQuery(""); setNotice(null); setMobileMenuOpen(false);
   };
   const filteredUsers = users.filter((user) => `${user.name} ${user.identifier} ${user.email}`.toLowerCase().includes(query.toLowerCase()) && (roleFilter === "Todos" || user.role === roleFilter));
   const filteredBooks = useMemo(() => books.filter((book) => `${book.title} ${book.author} ${book.isbn} ${book.category}`.toLowerCase().includes(query.toLowerCase())), [books, query]);
@@ -77,28 +85,31 @@ export default function Page() {
     if (!window.confirm("¿Deseas eliminar este registro? Esta acción no se puede deshacer.")) return;
     try { await send("DELETE", { resource, id }); setNotice({ message: "Registro eliminado correctamente.", type: "success" }); await loadCatalog(); } catch (error) { setNotice({ message: error instanceof Error ? error.message : "Error al eliminar.", type: "error" }); }
   };
-  const logout = async () => { await fetch("/api/auth", { method: "DELETE" }); setSession(null); };
+  const logout = async () => { await fetch("/api/auth", { method: "DELETE" }); setMobileMenuOpen(false); setSession(null); };
 
   if (authLoading) return <div className="loading-state">Comprobando sesión…</div>;
-  if (!session) return <Login onLogin={(nextSession) => { setSession(nextSession); setView("inicio"); void loadCatalog(); }} notice={notice?.message ?? ""} />;
+  if (!session) return <Login onLogin={(nextSession) => { setSession(nextSession); setView(nextSession.role === "Alumno" || nextSession.role === "Profesor" ? "buscar" : "inicio"); void loadCatalog(); }} notice={notice?.message ?? ""} mobileView={mobileView} onToggleMobile={() => setMobileView((current) => !current)} />;
+  if (!session) return null;
 
   const title = view === "inicio" ? "Resumen general" : view === "usuarios" ? "Gestión de usuarios" : view === "libros" ? "Catálogo de libros" : "Buscar libros";
-  return <div className="shell">
+  return <div className={`shell ${mobileView ? "mobile-mode" : ""}`}>
     <aside className="sidebar"><div className="brand"><div className="brand-mark"><Icon name="book" /></div><div><strong>SIGEB</strong><span>Biblioteca universitaria</span></div></div>
-      <NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} /><span className="nav-label">Administración</span>
+      {(session.role === "Alumno" || session.role === "Profesor") ? <NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /> : <><NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} /><span className="nav-label">Administración</span>
       {session.role === "Administrador" && <NavItem active={view === "usuarios"} icon="users" label="Gestión de usuarios" onClick={() => navigate("usuarios")} />}
-      <NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} />
+      <NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}
       <div className="sidebar-footer"><div className="avatar">{session.name.slice(0, 2).toUpperCase()}</div><div><strong>{session.name}</strong><span>{session.role}</span></div></div>
     </aside>
-    <main className="main"><header className="topbar"><div className="breadcrumbs"><span>Biblioteca</span><b>/</b><strong>{title}</strong></div><div className="top-actions"><button className="button secondary" onClick={() => void logout()}>Cerrar sesión</button><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div></div></header>
+    <main className="main"><header className="topbar"><div className="mobile-header-actions">{mobileView && <button className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((open) => !open)}><Icon name="menu" /></button>}</div><div className="breadcrumbs"><span>Biblioteca</span><b>/</b><strong>{title}</strong></div><div className="top-actions"><button className="button secondary desktop-logout" onClick={() => void logout()}>Cerrar sesión</button><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div></div></header>
+      {mobileView && mobileMenuOpen && <div className="mobile-menu-panel"><div className="mobile-menu-user"><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div><div><strong>{session.name}</strong><small>{session.role}</small></div></div>{(session.role === "Alumno" || session.role === "Profesor") ? <NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /> : <><NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} />{session.role === "Administrador" && <NavItem active={view === "usuarios"} icon="users" label="Gestión de usuarios" onClick={() => navigate("usuarios")} />}<NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}<button className="mobile-logout" onClick={() => void logout()}>Cerrar sesión</button></div>}
       <div className="content">{notice && <div className={`notice ${notice.type}`} role={notice.type === "error" ? "alert" : "status"}><span className="notice-indicator">{notice.type === "error" ? "!" : "✓"}</span><span>{notice.message}</span><button aria-label="Cerrar mensaje" onClick={() => setNotice(null)}><Icon name="close" /></button></div>}
-        {loading ? <div className="loading-state">Conectando con PostgreSQL…</div> : <>{view === "inicio" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={session.role === "Administrador"} />}
+        {loading ? <div className="loading-state">Conectando con PostgreSQL…</div> : <>{(session.role === "Alumno" || session.role === "Profesor") ? <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={() => setNotice({ message: "La solicitud se agregó a tu lista de espera.", type: "success" })} /> : <>{view === "inicio" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={session.role === "Administrador"} />}
           {view === "usuarios" && session.role === "Administrador" && <UserManagement users={filteredUsers} query={query} setQuery={setQuery} roleFilter={roleFilter} setRoleFilter={setRoleFilter} onAdd={() => setModal("user")} onEdit={(user) => { setSelectedUser(user); setModal("edit-user"); }} onDelete={(id) => void remove("user", id)} />}
           {view === "usuarios" && session.role !== "Administrador" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={false} />}
           {view === "libros" && <BookManagement books={filteredBooks} query={query} setQuery={setQuery} onAdd={() => setModal("book")} onEdit={(book) => { setSelectedBook(book); setModal("edit-book"); }} onDelete={(id) => void remove("book", id)} />}
           {view === "buscar" && <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={() => setNotice({ message: "La solicitud se agregó a tu lista de espera.", type: "success" })} />}
-        </>}</div>
+        </>}</>}</div>
     </main>
+    <button className="view-toggle" onClick={() => setMobileView((current) => !current)}>{mobileView ? "Vista web" : "Vista móvil"}</button>
     {modal === "user" && <Modal title="Nuevo usuario" onClose={() => setModal(null)}><form onSubmit={addUser}><ModalField label="Nombre completo" name="name" placeholder="Ej. Ana Sofía Martínez" required /><div className="form-grid"><ModalField label="Matrícula / nómina" name="identifier" placeholder="B0041" required /><ModalField label="Correo institucional" name="email" type="email" placeholder="usuario@universidad.edu" required /></div><ModalField label="Contraseña de acceso" name="password" type="password" placeholder="Mínimo 4 caracteres" required /><label className="field"><span>Tipo de usuario</span><SelectRole value="Bibliotecario" /></label><Actions label="Crear usuario" onCancel={() => setModal(null)} /></form></Modal>}
     {modal === "book" && <Modal title="Agregar libro al catálogo" onClose={() => setModal(null)}><form onSubmit={addBook}><ModalField label="Título" name="title" placeholder="Nombre del libro" required /><ModalField label="Autor" name="author" placeholder="Nombre del autor" required /><div className="form-grid"><ModalField label="Tema" name="category" placeholder="Programación" required /><ModalField label="Ejemplares" name="copies" type="number" placeholder="1" required /></div><ModalField label="Ubicación" name="location" placeholder="Piso 2 · A-14" required /><p className="form-hint">El ISBN se asignará automáticamente al guardar.</p><Actions label="Agregar libro" onCancel={() => setModal(null)} /></form></Modal>}
     {modal === "edit-user" && selectedUser && <Modal title="Editar usuario" onClose={() => setModal(null)}><form onSubmit={(event) => void edit(event, "user", selectedUser.id)}><ModalField label="Nombre completo" name="name" placeholder="" defaultValue={selectedUser.name} required /><ModalField label="Matrícula / nómina" name="identifier" placeholder="" defaultValue={selectedUser.identifier} required /><ModalField label="Correo institucional (opcional)" name="email" type="email" placeholder="Solo alumnos y profesores" defaultValue={selectedUser.email} /><label className="field"><span>Tipo de usuario</span><SelectRole value={selectedUser.role} /></label><Actions label="Guardar cambios" onCancel={() => setModal(null)} /></form></Modal>}
@@ -107,7 +118,7 @@ export default function Page() {
   </div>;
 }
 
-function Login({ onLogin, notice }: { onLogin: (session: Session) => void; notice: string }) {
+function Login({ onLogin, notice, mobileView, onToggleMobile }: { onLogin: (session: Session) => void; notice: string; mobileView: boolean; onToggleMobile: () => void }) {
   const [error, setError] = useState(notice);
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault(); const data = new FormData(event.currentTarget);
@@ -116,7 +127,7 @@ function Login({ onLogin, notice }: { onLogin: (session: Session) => void; notic
     if (!response.ok) { setError(result.error || "No fue posible iniciar sesión."); return; }
     onLogin(result.session);
   };
-  return <main className="login-page"><section className="login-card"><div className="brand-mark"><Icon name="book" /></div><span className="eyebrow">SIGEB</span><h1>Iniciar sesión</h1><p>Accede a la biblioteca universitaria.</p><form onSubmit={submit}><ModalField label="Usuario, matrícula o nómina" name="identifier" placeholder="admin" required /><ModalField label="Contraseña" name="password" type="password" placeholder="••••" required />{error && <div className="notice error" role="alert"><span className="notice-indicator">!</span><span>{error}</span></div>}<button className="button primary login-button">Entrar</button></form><small>Administrador inicial: admin / 1234</small></section></main>;
+  return <main className={`login-page ${mobileView ? "login-mobile-mode" : ""}`}><section className="login-card"><div className="brand-mark"><Icon name="book" /></div><span className="eyebrow">SIGEB</span><h1>Iniciar sesión</h1><p>Accede a la biblioteca universitaria.</p><form onSubmit={submit}><ModalField label="Usuario, matrícula o nómina" name="identifier" placeholder="admin" required /><ModalField label="Contraseña" name="password" type="password" placeholder="••••" required />{error && <div className="notice error" role="alert"><span className="notice-indicator">!</span><span>{error}</span></div>}<button className="button primary login-button">Entrar</button></form><small>Administrador inicial: admin / 1234</small></section><button className="view-toggle" onClick={onToggleMobile}>{mobileView ? "Vista web" : "Vista móvil"}</button></main>;
 }
 
 function NavItem({ icon, label, active, onClick }: { icon: string; label: string; active?: boolean; onClick: () => void }) { return <button className={`nav-item ${active ? "active" : ""}`} onClick={onClick}><Icon name={icon} /><span>{label}</span>{active && <em />}</button>; }

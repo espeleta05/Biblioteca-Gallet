@@ -188,10 +188,9 @@ export async function DELETE(request: Request) {
 
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Debes iniciar sesión." }, { status: 401 });
   try {
     const [users, books, currentUser, inventory, activity] = await Promise.all([
-      session.role === "Administrador" ? pool.query(`
+      session?.role === "Administrador" ? pool.query(`
         SELECT
           c.id_credencial,
           c.matricula_nomina AS identifier,
@@ -231,7 +230,7 @@ export async function GET() {
         GROUP BY l.id_libro, l.titulo, l.isbn, t.nombre_tema, l.tipo_uso, l.edicion, l.paginas, l.precio_ultima_compra_usd, l.id_tema
         ORDER BY l.titulo
       `),
-      Promise.resolve({ rows: [{ name: session.name, role: session.role }] }),
+      Promise.resolve({ rows: [{ name: session?.name ?? "Visitante", role: session?.role ?? "Consulta pública" }] }),
       pool.query(`
         SELECT COUNT(*)::int AS total,
           COUNT(*) FILTER (WHERE estado = 'Disponible')::int AS available,
@@ -267,7 +266,7 @@ export async function GET() {
         publisher: book.publisher,
       })),
       dashboard: {
-        currentUser: currentUser.rows[0] ?? { name: "Bibliotecario", role: "Bibliotecario" },
+        currentUser: currentUser.rows[0] ?? { name: "Visitante", role: "Consulta pública" },
         availability: inventory.rows[0] ?? { total: 0, available: 0, borrowed: 0 },
         activity: activity.rows.map((item) => ({
           icon: item.icon,
@@ -275,6 +274,7 @@ export async function GET() {
           detail: `${item.detail} · registro ${item.event_id}`,
         })),
       },
+      public: !session,
     });
   } catch (error) {
     return errorResponse(error);
@@ -304,7 +304,7 @@ export async function POST(request: Request) {
 
     if (body.resource === "user") {
       const data = body.data as UserPayload;
-      if (!data.name || !data.identifier || !data.email || !data.password || !["Alumno", "Profesor", "Bibliotecario"].includes(data.role)) {
+      if (!data.name || !data.identifier || !data.email || !data.password || data.role !== "Bibliotecario") {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Completa todos los datos del usuario." }, { status: 400 });
       }
@@ -322,22 +322,10 @@ export async function POST(request: Request) {
       );
       const credentialId = credential.rows[0].id_credencial;
 
-      if (data.role === "Alumno") {
-        await client.query(
-          "INSERT INTO ALUMNOS (matricula, id_credencial, nombre_completo, correo_institucional) VALUES ($1, $2, $3, $4)",
-          [data.identifier, credentialId, data.name, data.email],
-        );
-      } else if (data.role === "Profesor") {
-        await client.query(
-          "INSERT INTO PROFESORES (nomina, id_credencial, nombre_completo, correo_institucional) VALUES ($1, $2, $3, $4)",
-          [data.identifier, credentialId, data.name, data.email],
-        );
-      } else {
-        await client.query(
-          "INSERT INTO PERSONAL_BIBLIOTECA (id_credencial, nomina, nombre_completo, puesto) VALUES ($1, $2, $3, $4)",
-          [credentialId, data.identifier, data.name, "Bibliotecario"],
-        );
-      }
+      await client.query(
+        "INSERT INTO PERSONAL_BIBLIOTECA (id_credencial, nomina, nombre_completo, correo_institucional, puesto) VALUES ($1, $2, $3, $4, $5)",
+        [credentialId, data.identifier, data.name, data.email, "Bibliotecario"],
+      );
       await logActivity(client, "users", "Usuario registrado", `${data.name} · ${data.identifier}`);
     } else {
       const data = body.data as BookPayload;

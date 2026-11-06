@@ -10,5 +10,5 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 }
 
 export function SelectRole({ value = "Alumno" }: { value?: string }) {
-  return <select name="role" defaultValue={value}><option>Alumno</option><option>Profesor</option><option>Bibliotecario</option><option>Administrador</option></select>;
+  return <select name="role" defaultValue={value}><option>Bibliotecario</option></select>;
 }
