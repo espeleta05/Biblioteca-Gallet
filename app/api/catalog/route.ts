@@ -9,7 +9,7 @@ type UserPayload = {
   name: string;
   identifier: string;
   email: string;
-  role: "Alumno" | "Profesor" | "Bibliotecario";
+  role: "Administrador" | "Bibliotecario";
   password: string;
 };
 
@@ -159,6 +159,10 @@ export async function DELETE(request: Request) {
   try {
     await client.query("BEGIN");
     if (body.resource === "user") {
+      if (String(session.id) === body.id) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "No puedes dar de baja tu propia cuenta." }, { status: 409 });
+      }
       const current = await client.query(`
         SELECT COALESCE(a.nombre_completo, p.nombre_completo, b.nombre_completo, c.matricula_nomina) AS name
         FROM CREDENCIALES c
@@ -167,6 +171,18 @@ export async function DELETE(request: Request) {
         LEFT JOIN PERSONAL_BIBLIOTECA b ON b.id_credencial = c.id_credencial
         WHERE c.id_credencial = $1
       `, [body.id]);
+      if (!current.rowCount) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "La cuenta no existe." }, { status: 404 });
+      }
+      const pending = await client.query(`
+        SELECT EXISTS (SELECT 1 FROM PRESTAMOS WHERE id_credencial = $1 AND estado = 'Activo') AS active_loan,
+          EXISTS (SELECT 1 FROM MULTAS WHERE id_credencial = $1 AND estatus = 'Pendiente') AS pending_fine
+      `, [body.id]);
+      if (pending.rows[0].active_loan || pending.rows[0].pending_fine) {
+        await client.query("ROLLBACK");
+        return NextResponse.json({ error: "No se puede dar de baja la cuenta porque tiene préstamos o multas pendientes." }, { status: 409 });
+      }
       await client.query("DELETE FROM CREDENCIALES WHERE id_credencial = $1", [body.id]);
       await logActivity(client, "users", "Usuario eliminado", current.rows[0]?.name || body.id);
     } else {
@@ -304,7 +320,7 @@ export async function POST(request: Request) {
 
     if (body.resource === "user") {
       const data = body.data as UserPayload;
-      if (!data.name || !data.identifier || !data.email || !data.password || data.role !== "Bibliotecario") {
+      if (!data.name || !data.identifier || !data.email || !data.password || !["Administrador", "Bibliotecario"].includes(data.role)) {
         await client.query("ROLLBACK");
         return NextResponse.json({ error: "Completa todos los datos del usuario." }, { status: 400 });
       }
@@ -324,7 +340,7 @@ export async function POST(request: Request) {
 
       await client.query(
         "INSERT INTO PERSONAL_BIBLIOTECA (id_credencial, nomina, nombre_completo, correo_institucional, puesto) VALUES ($1, $2, $3, $4, $5)",
-        [credentialId, data.identifier, data.name, data.email, "Bibliotecario"],
+        [credentialId, data.identifier, data.name, data.email, data.role],
       );
       await logActivity(client, "users", "Usuario registrado", `${data.name} · ${data.identifier}`);
     } else {

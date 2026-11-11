@@ -1,4 +1,4 @@
-export type View = "inicio" | "usuarios" | "libros" | "buscar";
+export type View = "inicio" | "usuarios" | "libros" | "buscar" | "circulacion";
 
 export type User = {
   id: string;

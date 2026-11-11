@@ -141,6 +141,27 @@ Las contraseñas de demostración se almacenan como hashes scrypt y la sesión s
 - Solicitud de lista de espera en la vista de búsqueda.
 - Persistencia de usuarios y libros mediante API y PostgreSQL.
 
+### Sprints 2 y 3
+
+- Registro de préstamos con fecha de vencimiento en días hábiles.
+- Renovación limitada por el rol del usuario.
+- Devolución y actualización del estado del ejemplar.
+- Lista de espera sin solicitudes duplicadas.
+- Multas por retraso y costo de reposición por daño o pérdida.
+- Registro de pagos y suspensiones.
+- Validación de multas, préstamos activos, límites por rol y permisos.
+- API de circulación en `/api/circulation`.
+
+### Perfiles de demostración
+
+La base incluye 100 alumnos (`ALU001` a `ALU100`) y 20 profesores
+(`PROF001` a `PROF020`). La contraseña inicial de estos perfiles es `1234`.
+No se pueden crear alumnos ni profesores desde la interfaz: el administrador
+solo puede crear cuentas de administrador o bibliotecario.
+
+El inicio de sesión bloquea una cuenta durante un minuto después de tres
+contraseñas incorrectas consecutivas.
+
 ## Estructura relevante
 
 ```text

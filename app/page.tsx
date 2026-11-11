@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Dashboard } from "../components/Dashboard";
 import { BookSearch, BookManagement, UserManagement } from "../components/CatalogViews";
+import { CirculationViews } from "../components/CirculationViews";
 import { Icon } from "../components/Icon";
 import { Field as ModalField, Modal, SelectRole } from "../components/Modal";
 import { Book, DashboardData, User, View } from "../components/types";
@@ -85,28 +86,40 @@ export default function Page() {
     if (!window.confirm("¿Deseas eliminar este registro? Esta acción no se puede deshacer.")) return;
     try { await send("DELETE", { resource, id }); setNotice({ message: "Registro eliminado correctamente.", type: "success" }); await loadCatalog(); } catch (error) { setNotice({ message: error instanceof Error ? error.message : "Error al eliminar.", type: "error" }); }
   };
+  const reserveBook = async (book: Book) => {
+    try {
+      await fetch("/api/circulation", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "waitlist", bookId: book.id }) }).then(async (response) => {
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "No fue posible solicitar la espera.");
+      });
+      setNotice({ message: "La solicitud se agrego a tu lista de espera.", type: "success" });
+    } catch (error) {
+      setNotice({ message: error instanceof Error ? error.message : "No fue posible solicitar la espera.", type: "error" });
+    }
+  };
   const logout = async () => { await fetch("/api/auth", { method: "DELETE" }); setMobileMenuOpen(false); setSession(null); };
 
   if (authLoading) return <div className="loading-state">Comprobando sesión…</div>;
   if (!session) return <Login onLogin={(nextSession) => { setSession(nextSession); setView(nextSession.role === "Alumno" || nextSession.role === "Profesor" ? "buscar" : "inicio"); void loadCatalog(); }} notice={notice?.message ?? ""} mobileView={mobileView} onToggleMobile={() => setMobileView((current) => !current)} />;
   if (!session) return null;
 
-  const title = view === "inicio" ? "Resumen general" : view === "usuarios" ? "Gestión de usuarios" : view === "libros" ? "Catálogo de libros" : "Buscar libros";
+  const title = view === "inicio" ? "Resumen general" : view === "usuarios" ? "Gestión de usuarios" : view === "libros" ? "Catálogo de libros" : view === "circulacion" ? "Préstamos y multas" : "Buscar libros";
   return <div className={`shell ${mobileView ? "mobile-mode" : ""}`}>
     <aside className="sidebar"><div className="brand"><div className="brand-mark"><Icon name="book" /></div><div><strong>SIGEB</strong><span>Biblioteca universitaria</span></div></div>
       {(session.role === "Alumno" || session.role === "Profesor") ? <NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /> : <><NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} /><span className="nav-label">Administración</span>
       {session.role === "Administrador" && <NavItem active={view === "usuarios"} icon="users" label="Gestión de usuarios" onClick={() => navigate("usuarios")} />}
-      <NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}
+      <NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "circulacion"} icon="book" label="Préstamos y multas" onClick={() => navigate("circulacion")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}
       <div className="sidebar-footer"><div className="avatar">{session.name.slice(0, 2).toUpperCase()}</div><div><strong>{session.name}</strong><span>{session.role}</span></div></div>
     </aside>
     <main className="main"><header className="topbar"><div className="mobile-header-actions">{mobileView && <button className="mobile-menu-button" aria-label="Abrir menú" aria-expanded={mobileMenuOpen} onClick={() => setMobileMenuOpen((open) => !open)}><Icon name="menu" /></button>}</div><div className="breadcrumbs"><span>Biblioteca</span><b>/</b><strong>{title}</strong></div><div className="top-actions"><button className="button secondary desktop-logout" onClick={() => void logout()}>Cerrar sesión</button><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div></div></header>
-      {mobileView && mobileMenuOpen && <div className="mobile-menu-panel"><div className="mobile-menu-user"><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div><div><strong>{session.name}</strong><small>{session.role}</small></div></div>{(session.role === "Alumno" || session.role === "Profesor") ? <NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /> : <><NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} />{session.role === "Administrador" && <NavItem active={view === "usuarios"} icon="users" label="Gestión de usuarios" onClick={() => navigate("usuarios")} />}<NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}<button className="mobile-logout" onClick={() => void logout()}>Cerrar sesión</button></div>}
+      {mobileView && mobileMenuOpen && <div className="mobile-menu-panel"><div className="mobile-menu-user"><div className="top-avatar">{session.name.slice(0, 2).toUpperCase()}</div><div><strong>{session.name}</strong><small>{session.role}</small></div></div>{(session.role === "Alumno" || session.role === "Profesor") ? <NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /> : <><NavItem active={view === "inicio"} icon="home" label="Inicio" onClick={() => navigate("inicio")} />{session.role === "Administrador" && <NavItem active={view === "usuarios"} icon="users" label="Gestión de usuarios" onClick={() => navigate("usuarios")} />}<NavItem active={view === "libros"} icon="book" label="Catálogo de libros" onClick={() => navigate("libros")} /><NavItem active={view === "circulacion"} icon="book" label="Préstamos y multas" onClick={() => navigate("circulacion")} /><NavItem active={view === "buscar"} icon="search" label="Buscar libros" onClick={() => navigate("buscar")} /></>}<button className="mobile-logout" onClick={() => void logout()}>Cerrar sesión</button></div>}
       <div className="content">{notice && <div className={`notice ${notice.type}`} role={notice.type === "error" ? "alert" : "status"}><span className="notice-indicator">{notice.type === "error" ? "!" : "✓"}</span><span>{notice.message}</span><button aria-label="Cerrar mensaje" onClick={() => setNotice(null)}><Icon name="close" /></button></div>}
-        {loading ? <div className="loading-state">Conectando con PostgreSQL…</div> : <>{(session.role === "Alumno" || session.role === "Profesor") ? <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={() => setNotice({ message: "La solicitud se agregó a tu lista de espera.", type: "success" })} /> : <>{view === "inicio" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={session.role === "Administrador"} />}
+        {loading ? <div className="loading-state">Conectando con PostgreSQL…</div> : <>{(session.role === "Alumno" || session.role === "Profesor") ? <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={(book) => void reserveBook(book)} /> : <>{view === "inicio" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={session.role === "Administrador"} />}
           {view === "usuarios" && session.role === "Administrador" && <UserManagement users={filteredUsers} query={query} setQuery={setQuery} roleFilter={roleFilter} setRoleFilter={setRoleFilter} onAdd={() => setModal("user")} onEdit={(user) => { setSelectedUser(user); setModal("edit-user"); }} onDelete={(id) => void remove("user", id)} />}
           {view === "usuarios" && session.role !== "Administrador" && dashboard && <Dashboard users={users} books={books} dashboard={dashboard} onNavigate={navigate} canManageUsers={false} />}
           {view === "libros" && <BookManagement books={filteredBooks} query={query} setQuery={setQuery} onAdd={() => setModal("book")} onEdit={(book) => { setSelectedBook(book); setModal("edit-book"); }} onDelete={(id) => void remove("book", id)} />}
-          {view === "buscar" && <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={() => setNotice({ message: "La solicitud se agregó a tu lista de espera.", type: "success" })} />}
+          {view === "circulacion" && <CirculationViews onNotice={(message, type) => setNotice({ message, type })} onCatalogChanged={loadCatalog} />}
+          {view === "buscar" && <BookSearch books={filteredBooks} query={query} setQuery={setQuery} onDetails={(book) => { setSelectedBook(book); setModal("details"); }} onReserve={(book) => void reserveBook(book)} />}
         </>}</>}</div>
     </main>
     <button className="view-toggle" onClick={() => setMobileView((current) => !current)}>{mobileView ? "Vista web" : "Vista móvil"}</button>

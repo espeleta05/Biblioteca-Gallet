@@ -129,6 +129,75 @@ VALUES
     (2, 'Horarios', '¿Cuál es el horario de la biblioteca?', 'La biblioteca abre de lunes a viernes de 08:00 a 20:00 horas.')
 ON CONFLICT DO NOTHING;
 
+-- Perfiles institucionales precargados. Su contraseña inicial es 1234.
+-- Estos perfiles no se crean desde la interfaz: el administrador solo puede
+-- crear administradores y bibliotecarios adicionales.
+DO $$
+DECLARE
+    i INT;
+    credential_id INT;
+BEGIN
+    FOR i IN 1..100 LOOP
+        INSERT INTO CREDENCIALES (id_rol, matricula_nomina, contrasena_hash, estatus)
+        VALUES (3, 'ALU' || LPAD(i::text, 3, '0'),
+          'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838',
+          'Activa')
+        ON CONFLICT (matricula_nomina) DO NOTHING
+        RETURNING id_credencial INTO credential_id;
+        IF credential_id IS NOT NULL THEN
+            INSERT INTO ALUMNOS (matricula, id_credencial, nombre_completo, correo_institucional, telefono)
+            VALUES ('ALU' || LPAD(i::text, 3, '0'), credential_id,
+              'Alumno de demostración ' || LPAD(i::text, 3, '0'),
+              'alumno' || LPAD(i::text, 3, '0') || '@universidad.edu',
+              '818200' || LPAD(i::text, 4, '0'))
+            ON CONFLICT DO NOTHING;
+        END IF;
+    END LOOP;
+    FOR i IN 1..20 LOOP
+        INSERT INTO CREDENCIALES (id_rol, matricula_nomina, contrasena_hash, estatus)
+        VALUES (4, 'PROF' || LPAD(i::text, 3, '0'),
+          'scrypt$f5357b2890b84b947624777712d51d8a$fc26b82b3ad6dd693089c4c3acd5a1ee109076d9473b498e83d431baa2987c0dba228f2fc4595f5649ad2b9ee29425362a01f540268d4bc8258cb85838088838',
+          'Activa')
+        ON CONFLICT (matricula_nomina) DO NOTHING
+        RETURNING id_credencial INTO credential_id;
+        IF credential_id IS NOT NULL THEN
+            INSERT INTO PROFESORES (nomina, id_credencial, nombre_completo, correo_institucional, telefono)
+            VALUES ('PROF' || LPAD(i::text, 3, '0'), credential_id,
+              'Profesor de demostración ' || LPAD(i::text, 3, '0'),
+              'profesor' || LPAD(i::text, 3, '0') || '@universidad.edu',
+              '818300' || LPAD(i::text, 4, '0'))
+            ON CONFLICT DO NOTHING;
+        END IF;
+    END LOOP;
+END $$;
+
+-- Acervo adicional para probar filtros, disponibilidad y préstamos.
+DO $$
+DECLARE
+    i INT;
+    book_id VARCHAR(13);
+    author_id INT;
+    topic_id INT;
+BEGIN
+    FOR i IN 1..20 LOOP
+        book_id := '978999000' || LPAD(i::text, 4, '0');
+        INSERT INTO TEMAS (nombre_tema)
+        VALUES ('Tema de prueba ' || ((i % 5) + 1))
+        ON CONFLICT (nombre_tema) DO UPDATE SET nombre_tema = EXCLUDED.nombre_tema
+        RETURNING id_tema INTO topic_id;
+        INSERT INTO AUTORES (nombre_autor)
+        VALUES ('Autor de prueba ' || LPAD(i::text, 2, '0'))
+        RETURNING id_autor INTO author_id;
+        INSERT INTO LIBROS (id_libro, isbn, titulo, id_editorial, id_tema, edicion, paginas, tipo_uso, precio_ultima_compra_usd)
+        VALUES (book_id, book_id, 'Libro de demostración ' || LPAD(i::text, 2, '0'), 1, topic_id, 1, 200 + i, 'General', 20 + i)
+        ON CONFLICT DO NOTHING;
+        INSERT INTO LIBRO_AUTOR (id_libro, id_autor) VALUES (book_id, author_id) ON CONFLICT DO NOTHING;
+        INSERT INTO EJEMPLARES (id_libro, clave_ejemplar, estado, piso, area, pasillo, estante)
+        VALUES (book_id, book_id || '-001', 'Disponible', 'Piso ' || ((i % 3) + 1), 'General', 'D', LPAD(i::text, 2, '0'))
+        ON CONFLICT DO NOTHING;
+    END LOOP;
+END $$;
+
 -- Alinear las secuencias después de insertar identificadores de demostración.
 SELECT setval(pg_get_serial_sequence('roles', 'id_rol'), COALESCE(MAX(id_rol), 1), true) FROM ROLES;
 SELECT setval(pg_get_serial_sequence('permisos', 'id_permiso'), COALESCE(MAX(id_permiso), 1), true) FROM PERMISOS;

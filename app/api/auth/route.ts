@@ -16,6 +16,7 @@ export async function POST(request: Request) {
   try {
     const result = await pool.query(`
       SELECT c.id_credencial, c.matricula_nomina, c.contrasena_hash, c.estatus,
+        c.intentos_fallidos, c.bloqueado_hasta,
         r.nombre_rol,
         COALESCE(a.nombre_completo, p.nombre_completo, b.nombre_completo) AS nombre
       FROM CREDENCIALES c
@@ -26,9 +27,31 @@ export async function POST(request: Request) {
       WHERE LOWER(TRIM(c.matricula_nomina)) = LOWER(TRIM($1))
     `, [body.identifier]);
     const user = result.rows[0];
-    if (!user || user.estatus !== "Activa" || !verifyPassword(body.password, user.contrasena_hash)) {
+    if (!user || user.estatus !== "Activa") {
       return NextResponse.json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
     }
+    if (user.bloqueado_hasta && new Date(user.bloqueado_hasta) > new Date()) {
+      return NextResponse.json({ error: "Tu cuenta está bloqueada temporalmente. Intenta de nuevo en un minuto." }, { status: 423 });
+    }
+    if (!verifyPassword(body.password, user.contrasena_hash)) {
+      const attempts = Number(user.intentos_fallidos ?? 0) + 1;
+      if (attempts >= 3) {
+        await pool.query(
+          "UPDATE CREDENCIALES SET intentos_fallidos = 0, bloqueado_hasta = CURRENT_TIMESTAMP + INTERVAL '1 minute' WHERE id_credencial = $1",
+          [user.id_credencial],
+        );
+        return NextResponse.json({ error: "Tu cuenta se bloqueó por varios intentos fallidos. Intenta de nuevo en un minuto." }, { status: 423 });
+      }
+      await pool.query(
+        "UPDATE CREDENCIALES SET intentos_fallidos = $1 WHERE id_credencial = $2",
+        [attempts, user.id_credencial],
+      );
+      return NextResponse.json({ error: "Usuario o contraseña incorrectos." }, { status: 401 });
+    }
+    await pool.query(
+      "UPDATE CREDENCIALES SET intentos_fallidos = 0, bloqueado_hasta = NULL WHERE id_credencial = $1",
+      [user.id_credencial],
+    );
 
     const session = {
       id: String(user.id_credencial),
