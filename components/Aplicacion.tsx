@@ -46,8 +46,9 @@ function ControlesAccesibilidad() {
   }, [escala, alto]);
   return (
     <div className="acciones-barra" role="group" aria-label="Accesibilidad">
-      <button className="boton chico" onClick={() => setEscala((e) => Math.max(0.875, +(e - 0.125).toFixed(3)))} aria-label="Reducir tamaño de letra">A−</button>
-      <button className="boton chico" onClick={() => setEscala((e) => Math.min(1.75, +(e + 0.125).toFixed(3)))} aria-label="Aumentar tamaño de letra">A+</button>
+      {/* El nombre accesible empieza con el texto visible (WCAG 2.5.3, control por voz). */}
+      <button className="boton chico" onClick={() => setEscala((e) => Math.max(0.875, +(e - 0.125).toFixed(3)))} aria-label="A− Reducir tamaño de letra" title="Reducir tamaño de letra">A−</button>
+      <button className="boton chico" onClick={() => setEscala((e) => Math.min(1.75, +(e + 0.125).toFixed(3)))} aria-label="A+ Aumentar tamaño de letra" title="Aumentar tamaño de letra">A+</button>
       <button className="boton chico" aria-pressed={alto} onClick={() => setAlto((a) => !a)}>Alto contraste</button>
     </div>
   );

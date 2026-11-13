@@ -78,7 +78,8 @@ export function Etiqueta({ color, children }: { color: "verde" | "naranja" | "ro
 
 export function Tabla({ titulo, columnas, vacio, children, cantidad }: { titulo: string; columnas: string[]; vacio: string; children: ReactNode; cantidad: number }) {
   return (
-    <div className="tabla">
+    // Focusable para poder desplazar con teclado cuando la tabla no cabe (WCAG 2.1.1).
+    <div className="tabla" tabIndex={0} role="region" aria-label={titulo}>
       <table>
         <caption>{titulo} <span className="solo-lectores">({cantidad} registros)</span></caption>
         <thead><tr>{columnas.map((c) => <th key={c} scope="col">{c}</th>)}</tr></thead>
