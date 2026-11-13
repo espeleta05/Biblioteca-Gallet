@@ -40,9 +40,9 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 |---|---|---|---|
 | Autenticación | JWT HS256, scrypt, bloqueo tras 5 intentos | `usuarios.test.ts` | ✅ |
 | Backup/Restore | `infra/respaldos/*.sh`; contenedor `respaldos`; diario con 30 días de retención | Restauración completa probada el 2026-11-13: mismos conteos y checksum | ✅ |
-| Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | Prueba de carga k6 con 100 usuarios: `pruebas/carga/k6-busqueda.js` | ⏳ Falta ejecutarla con el stack en Docker |
+| Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | k6 con 100 usuarios (`pruebas/carga/k6-busqueda.js`): p95 de 33.8 ms y 0 % de errores | ✅ (falta repetirla a través de NGINX en Docker) |
 | Multiplataforma | Web responsiva + React Native | Build de la web; bundle de Android | ✅ web y Android; ⏳ falta probar en iOS |
-| Accesible | AA en contraste, escala de letra, alto contraste, foco, ARIA, lectores de pantalla | Lighthouse/axe | ⏳ Falta ejecutar la auditoría |
+| Accesible | AA en contraste, escala de letra, alto contraste, foco, ARIA, lectores de pantalla | axe en 16 pantallas (`npm run test:accesibilidad`) con 0 violaciones; Lighthouse 100 | ✅ |
 | Navegación en 3 clics | Menú por rol y accesos directos | Préstamo: menú → solicitante → libro → registrar | ✅ Verificado en el navegador |
 | Chatbot 24 h | Servicio independiente | Batería de preguntas en pruebas | ✅ (falta que la Biblioteca valide las preguntas) |
 | Registro en tiempo real | Transacciones y `FOR UPDATE` / `SKIP LOCKED` | `circulacion.test.ts` | ✅ |

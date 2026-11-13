@@ -60,14 +60,14 @@ Leyenda: ✅ se cumple, con evidencia · ⏳ preparado, pero falta ejecutarlo ·
 | E7 | Pruebas 4C | ✅ | Claras (ID y caso), correctas, completas por regla; el consenso con el cliente queda en la UAT |
 | E8 | Casos límite de la propuesta | ✅ | Tercer ejemplar, renovación número tres, fin de semana (TC-F02, F03, V03) |
 | E9 | Guion de UAT | ✅ / ⏳ | `docs/pruebas-aceptacion-uat.md`; falta ejecutarlo con la Biblioteca |
-| — | Pruebas automatizadas de la interfaz web | ❌ | Solo hubo verificación manual en el navegador: préstamo y chatbot de alumno |
+| — | Pruebas automatizadas de la interfaz web | ✅ / ⏳ | La auditoría `pruebas/accesibilidad/axe-vistas.mjs` recorre con Playwright 16 pantallas y diálogos con inicio de sesión real. Faltan pruebas funcionales de la interfaz (los flujos se verificaron a mano en el navegador). |
 
 ## F. Prácticas de equipo (Google caps. 2, 3, 8 y 9)
 
 | # | Punto | Estado | Evidencia |
 |---|---|---|---|
-| F1 | Cambios pequeños, un commit por cambio lógico | ⏳ | Todo está en la rama sin commits; falta dividirlo en commits por sprint o función |
-| F2 | Revisión de código y VoBo antes de integrar | ⏳ | Pendiente: PR revisado por otro integrante |
+| F1 | Cambios pequeños, un commit por cambio lógico | ✅ | Un commit por sprint, más web, app móvil y documentación (PR #1) |
+| F2 | Revisión de código y VoBo antes de integrar | ⏳ | PR #1 abierto; falta la revisión de otro integrante |
 | F3 | Automatizar lo mecánico (CI) | ✅ | `.github/workflows/ci.yml` (corre en GitHub al hacer push) |
 | F4 | Normas escritas | ✅ | `docs/normas.md` |
 | F5 | Documentación que deja rastro | ✅ | README, manual, ADRs, trazabilidad, UAT, decisiones |
@@ -79,19 +79,19 @@ Leyenda: ✅ se cumple, con evidencia · ⏳ preparado, pero falta ejecutarlo ·
 | G1 | Contraste y tipografía para baja visión | ✅ | Paleta con contraste ≥ 4.5:1 (comentada en `globals.css`), escala de letra y alto contraste |
 | G2 | Lectores de pantalla y teclado | ✅ | Etiquetas, roles ARIA, `aria-live`, foco atrapado en modales, enlace para saltar al contenido; accesibilidad nativa en la app |
 | G3 | Pantallas responsivas | ✅ | Breakpoint de 860 px con menú desplegable |
-| G4 | Auditoría Lighthouse/axe (WCAG 2.1 AA) | ⏳ | Falta ejecutarla |
+| G4 | Auditoría Lighthouse/axe (WCAG 2.1 AA) | ✅ | 2026-11-13: axe con 0 violaciones en 16 pantallas (incluye alto contraste, letra al 175 % y 390 px); Lighthouse con 100 en accesibilidad y 100 en buenas prácticas. Corrigió 3 defectos: tabla desplazable sin teclado (2.1.1), nombre accesible distinto del texto visible (2.5.3) e icono faltante. Resultados en `pruebas/accesibilidad/resultados/` |
 
 ## H. Calidad de servicio (Google caps. 6–7 + RNF)
 
 | # | Punto | Estado | Evidencia |
 |---|---|---|---|
-| H1 | ≤ 3 s; índices | ✅ / ⏳ | Índices y tiempos límite; la prueba de carga con k6 (100 usuarios) está lista pero falta ejecutarla |
+| H1 | ≤ 3 s; índices | ✅ | 2026-11-13, k6 con 100 usuarios durante 1 min: 11,531 peticiones, 0 % de errores, p95 de 33.8 ms (máx. 1.09 s) contra los servicios directos. Falta repetirla a través de NGINX en Docker. Resultado en `pruebas/carga/resultados/` |
 | H2 | Métricas útiles | ✅ | Umbral `p(95)<3000` en k6; tabla `BITACORA` para auditoría |
 
 ## Lo que falta para cerrar el Sprint 4 por completo
 
-1. Dividir el trabajo en commits pequeños y abrir el PR para revisión (F1, F2).
-2. Levantar el stack con Docker Compose en un equipo con Docker y ejecutar k6 y Lighthouse/axe (H1, G4).
+1. Revisión del PR #1 y VoBo de otro integrante (F2). Los commits por sprint ya están hechos (F1).
+2. Levantar el stack con Docker Compose en un equipo con Docker y repetir k6 a través de NGINX (H1 ya se cumple contra los servicios directos).
 3. Probar la app en un teléfono Android y otro iOS con Expo Go.
 4. Cargar las credenciales reales que entrega la Universidad: Banxico, SMTP, WhatsApp y Dialogflow CX (ADR 0002).
 5. Ejecutar la UAT y la capacitación con la Biblioteca, y firmar el acta (E9). Esto no es código.

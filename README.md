@@ -60,7 +60,7 @@ npm run typecheck
 npm test            # 150 unitarias + 59 de integración (necesita PostgreSQL de pruebas en DATABASE_URL)
 ```
 
-La prueba de carga (≤ 3 s con 100 usuarios) está en `pruebas/carga/k6-busqueda.js`. Los respaldos se hacen a diario con 30 días de retención (servicio `respaldos`); para restaurar se usa `infra/respaldos/restaurar.sh`.
+La prueba de carga (≤ 3 s con 100 usuarios) está en `pruebas/carga/k6-busqueda.js`. La auditoría de accesibilidad se corre con `npm run test:accesibilidad` (WCAG 2.1 AA con axe sobre todas las vistas; requiere el sistema corriendo y Chrome o Edge). Los respaldos se hacen a diario con 30 días de retención (servicio `respaldos`); para restaurar se usa `infra/respaldos/restaurar.sh`.
 
 ## Cuentas de prueba
 
