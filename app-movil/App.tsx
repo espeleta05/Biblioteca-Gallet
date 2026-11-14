@@ -5,7 +5,7 @@
  * texto que respeta el tamaño de letra del sistema y contraste AA.
  */
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
 import { buscarLibros, cerrarSesion, ErrorApi, iniciarSesion, preguntarChatbot, sesionActual, type Libro, type Sesion } from "./src/api";
 
@@ -85,7 +85,7 @@ function Chatbot() {
   const [mensajes, setMensajes] = useState<Mensaje[]>([{ de: "bot", texto: "Hola, pregúntame por vigencias, renovaciones, multas, costos de reposición o por tus préstamos." }]);
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const lista = useRef<ScrollView>(null);
+  const lista = useRef<ComponentRef<typeof ScrollView>>(null);
   const enviar = async (pregunta = texto) => {
     if (!pregunta.trim()) return;
     setMensajes((m) => [...m, { de: "usuario", texto: pregunta }]); setTexto(""); setEnviando(true);
