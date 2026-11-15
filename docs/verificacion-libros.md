@@ -92,7 +92,7 @@ Leyenda: ✅ se cumple, con evidencia · ⏳ preparado, pero falta ejecutarlo ·
 
 1. Revisión del PR #1 y VoBo de otro integrante (F2). Los commits por sprint ya están hechos (F1).
 2. Levantar el stack con Docker Compose en un equipo con Docker y repetir k6 a través de NGINX (H1 ya se cumple contra los servicios directos).
-3. Probar la app en un teléfono Android y otro iOS con Expo Go.
+3. La app ya se probó en un celular real con Expo Go (2026-11-15); falta repetir la prueba en el otro sistema operativo (Android o iOS).
 4. Cargar las credenciales reales que entrega la Universidad: Banxico, SMTP, WhatsApp y Dialogflow CX (ADR 0002).
 5. Ejecutar la UAT y la capacitación con la Biblioteca, y firmar el acta (E9). Esto no es código.
 6. Que el PO resuelva `docs/decisiones-pendientes.md`.

@@ -32,7 +32,7 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 | 3 | Alumnos suspendidos (exceso de multas, robo, mal uso) y aviso a Servicios Escolares | `alumnos-suspendidos` | `circulacion.test.ts` → robo / exceso; `unit/multas.test.ts` |
 | 4 | Chatbot: reglas y políticas | `chatbot`; `dominio/chatbot.ts`; `CHATBOT_REGLAS` | `unit/chatbot.test.ts`; `chatbot-y-sincronizacion.test.ts` |
 | 4 | Chatbot: préstamos vigentes, vencimientos y multas | `chatbot` → `respuestaPersonal` | `chatbot-y-sincronizacion.test.ts` |
-| 4 | Chatbot en web y app | `components/Chatbot.tsx`; `app-movil/App.tsx` | Verificación manual en navegador (2026-11-13) y bundle de Android |
+| 4 | Chatbot en web y app | `components/Chatbot.tsx`; `app-movil/App.tsx` | Verificación manual en navegador (2026-11-13) y en un celular real con Expo Go (2026-11-15) |
 
 ## Requerimientos no funcionales (Propuesta 3.3)
 
@@ -41,7 +41,7 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 | Autenticación | JWT HS256, scrypt, bloqueo tras 5 intentos | `usuarios.test.ts` | ✅ |
 | Backup/Restore | `infra/respaldos/*.sh`; contenedor `respaldos`; diario con 30 días de retención | Restauración completa probada el 2026-11-13: mismos conteos y checksum | ✅ |
 | Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | k6 con 100 usuarios (`pruebas/carga/k6-busqueda.js`): p95 de 33.8 ms y 0 % de errores | ✅ (falta repetirla a través de NGINX en Docker) |
-| Multiplataforma | Web responsiva + React Native | Build de la web; bundle de Android | ✅ web y Android; ⏳ falta probar en iOS |
+| Multiplataforma | Web responsiva + React Native | Build de la web; app probada en un celular real con Expo Go (SDK 58) el 2026-11-15: inicio de sesión, búsqueda y asistente | ✅ (falta repetir en el otro sistema operativo, Android o iOS) |
 | Accesible | AA en contraste, escala de letra, alto contraste, foco, ARIA, lectores de pantalla | axe en 16 pantallas (`npm run test:accesibilidad`) con 0 violaciones; Lighthouse 100 | ✅ |
 | Navegación en 3 clics | Menú por rol y accesos directos | Préstamo: menú → solicitante → libro → registrar | ✅ Verificado en el navegador |
 | Chatbot 24 h | Servicio independiente | Batería de preguntas en pruebas | ✅ (falta que la Biblioteca valide las preguntas) |
