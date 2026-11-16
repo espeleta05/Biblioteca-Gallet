@@ -26,7 +26,7 @@ Web (React + TypeScript / Next.js)     App móvil (React Native / Expo)
 | `servicios/` | 8 microservicios NestJS + `comun/` (reglas de negocio, JWT, BD, integraciones) + simuladores + pruebas |
 | `app/`, `components/`, `lib/` | Aplicación web |
 | `app-movil/` | App React Native: buscar libros y chatbot |
-| `db/` | `esquema.sql` y `datos.sql` |
+| `db/` | `esquema.sql`, `datos-base.sql` (todo ambiente) y `datos-prueba.sql` (solo pruebas) |
 | `infra/` | NGINX (gateway) y scripts de respaldo y restauración |
 | `docs/` | ADRs, trazabilidad, manual de usuario, UAT, normas, decisiones pendientes, verificación contra los libros |
 
@@ -38,14 +38,14 @@ sh infra/nginx/generar-certificado-dev.sh
 docker compose --profile pruebas up -d --build
 ```
 
-Abre https://localhost. En producción no se usa `--profile pruebas`; en su lugar, `URL_BD_ESCOLAR` y `URL_TESORERIA` apuntan a los sistemas reales.
+Abre https://localhost. También puedes usar `sh infra/desplegar.sh --pruebas`, que además revisa la configuración y comprueba que todo responda. Para producción sigue [docs/despliegue.md](docs/despliegue.md).
 
 ## Desarrollo sin Docker
 
 Requiere Node 20 o superior y PostgreSQL 14 o superior.
 
 ```bash
-psql -d sigeb -f db/esquema.sql && psql -d sigeb -f db/datos.sql
+psql -d sigeb -f db/esquema.sql && psql -d sigeb -f db/datos-base.sql && psql -d sigeb -f db/datos-prueba.sql
 cd servicios && npm ci && npm run build
 DATABASE_URL=postgres://... JWT_SECRET=<32+ caracteres> npm run inicio   # 8 servicios + simuladores
 cd .. && npm ci && npm run dev                                            # web en http://localhost:3000
@@ -76,6 +76,7 @@ Cámbialas antes de producción.
 
 ## Documentos clave
 
+- [Puesta en producción (despliegue)](docs/despliegue.md)
 - [Trazabilidad backlog → código → pruebas](docs/trazabilidad.md)
 - [Verificación contra SWEBOK y Google](docs/verificacion-libros.md)
 - [Decisiones pendientes con el Product Owner](docs/decisiones-pendientes.md)
