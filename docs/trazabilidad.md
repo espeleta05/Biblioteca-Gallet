@@ -40,7 +40,7 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 |---|---|---|---|
 | Autenticación | JWT HS256, scrypt, bloqueo tras 5 intentos | `usuarios.test.ts` | ✅ |
 | Backup/Restore | `infra/respaldos/*.sh`; contenedor `respaldos`; diario con 30 días de retención | Restauración completa probada el 2026-11-13: mismos conteos y checksum | ✅ |
-| Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | k6 con 100 usuarios (`pruebas/carga/k6-busqueda.js`): p95 de 33.8 ms y 0 % de errores | ✅ (falta repetirla a través de NGINX en Docker) |
+| Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | k6 con 100 usuarios (`pruebas/carga/k6-busqueda.js`): p95 de 33.8 ms directo a los servicios y 81.5 ms a través de NGINX en Docker, 0 % de errores | ✅ |
 | Multiplataforma | Web responsiva + React Native | Build de la web; app probada en un celular real con Expo Go (SDK 58) el 2026-11-15: inicio de sesión, búsqueda y asistente | ✅ (falta repetir en el otro sistema operativo, Android o iOS) |
 | Accesible | AA en contraste, escala de letra, alto contraste, foco, ARIA, lectores de pantalla | axe en 16 pantallas (`npm run test:accesibilidad`) con 0 violaciones; Lighthouse 100 | ✅ |
 | Navegación en 3 clics | Menú por rol y accesos directos | Préstamo: menú → solicitante → libro → registrar | ✅ Verificado en el navegador |

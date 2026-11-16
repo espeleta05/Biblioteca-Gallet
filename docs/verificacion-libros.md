@@ -19,7 +19,7 @@ Leyenda: ✅ se cumple, con evidencia · ⏳ preparado, pero falta ejecutarlo ·
 | # | Punto | Estado | Evidencia |
 |---|---|---|---|
 | B1 | Decisiones registradas con alternativas y trade-offs | ✅ | `docs/adr/0001`, `0002` |
-| B2 | Un módulo por función; un cambio en multas no rompe préstamos | ✅ | 8 microservicios; si falla una llamada entre servicios, no se deshace la operación (`seguimiento`) |
+| B2 | Un módulo por función; un cambio en multas no rompe préstamos | ✅ | 8 microservicios en contenedores separados (Docker Compose verificado el 2026-11-15); si falla una llamada entre servicios, no se deshace la operación (`seguimiento`) |
 | B3 | La deuda técnica está escrita | ✅ | Sección "Deuda registrada" del ADR 0001 |
 
 ## C. Diseño (SWEBOK 03)
@@ -85,13 +85,13 @@ Leyenda: ✅ se cumple, con evidencia · ⏳ preparado, pero falta ejecutarlo ·
 
 | # | Punto | Estado | Evidencia |
 |---|---|---|---|
-| H1 | ≤ 3 s; índices | ✅ | 2026-11-13, k6 con 100 usuarios durante 1 min: 11,531 peticiones, 0 % de errores, p95 de 33.8 ms (máx. 1.09 s) contra los servicios directos. Falta repetirla a través de NGINX en Docker. Resultado en `pruebas/carga/resultados/` |
+| H1 | ≤ 3 s; índices | ✅ | 2026-11-13, k6 con 100 usuarios durante 1 min: 11,531 peticiones, 0 % de errores, p95 de 33.8 ms (máx. 1.09 s) contra los servicios directos. 2026-11-15, a través del gateway NGINX en Docker Compose: 11,213 peticiones, 0 % de errores, p95 de 81.5 ms (máx. 388 ms). Resultados en `pruebas/carga/resultados/` |
 | H2 | Métricas útiles | ✅ | Umbral `p(95)<3000` en k6; tabla `BITACORA` para auditoría |
 
 ## Lo que falta para cerrar el Sprint 4 por completo
 
 1. Revisión del PR #1 y VoBo de otro integrante (F2). Los commits por sprint ya están hechos (F1).
-2. Levantar el stack con Docker Compose en un equipo con Docker y repetir k6 a través de NGINX (H1 ya se cumple contra los servicios directos).
+2. ~~Levantar el stack con Docker Compose y repetir k6 a través de NGINX~~ Hecho el 2026-11-15: 14 contenedores, HTTPS, bloqueo por rol en NGINX, préstamo y devolución con avisos entre servicios y respaldo automático verificados.
 3. La app ya se probó en un celular real con Expo Go (2026-11-15); falta repetir la prueba en el otro sistema operativo (Android o iOS).
 4. Cargar las credenciales reales que entrega la Universidad: Banxico, SMTP, WhatsApp y Dialogflow CX (ADR 0002).
 5. Ejecutar la UAT y la capacitación con la Biblioteca, y firmar el acta (E9). Esto no es código.
