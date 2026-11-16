@@ -1,0 +1,5 @@
+# Contexto de la imagen de microservicios: el código fuente y los manifiestos.
+node_modules
+dist
+coverage
+tests

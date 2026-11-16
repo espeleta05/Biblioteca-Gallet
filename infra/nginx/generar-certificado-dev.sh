@@ -3,6 +3,8 @@
 # En producción la Universidad entrega el certificado SSL del subdominio
 # institucional (Propuesta 3.4) y se coloca en infra/nginx/certs/.
 set -eu
+# En Git Bash (Windows) evita que "/CN=..." se convierta en una ruta de Windows.
+export MSYS2_ARG_CONV_EXCL='*'
 DIR="$(dirname "$0")/certs"
 mkdir -p "$DIR"
 openssl req -x509 -nodes -newkey rsa:2048 -days 365 \

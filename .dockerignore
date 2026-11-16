@@ -1,0 +1,15 @@
+# Contexto de la imagen web: solo lo que la aplicación web necesita para compilar.
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+servicios
+app-movil
+docs
+pruebas
+db
+infra
+respaldos
+*.md
