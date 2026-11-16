@@ -12,7 +12,7 @@ import type { Sesion } from "../../comun/auth";
 import { formatoPesos } from "../../comun/avisos";
 import { PUERTOS } from "../../comun/config";
 import { consultar, obtenerPool } from "../../comun/db";
-import { clasificar, RESPUESTA_DESCONOCIDA, type IntencionPersonal, type ReglaConocimiento } from "../../comun/dominio/chatbot";
+import { clasificar, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type IntencionPersonal, type ReglaConocimiento } from "../../comun/dominio/chatbot";
 import { hoyEnBiblioteca } from "../../comun/dominio/fechas";
 import { detectarIntencionDialogflow } from "../../comun/integraciones";
 import { iniciarServicio, UsuarioActual } from "../../comun/nest";
@@ -65,6 +65,7 @@ export class ServicioChatbot {
       const clasificacion = clasificar(texto, await this.reglas());
       if (clasificacion.tipo === "personal") { intencion = clasificacion.intencion; respuesta = await this.respuestaPersonal(clasificacion.intencion, sesion); }
       if (clasificacion.tipo === "regla") { intencion = `regla:${clasificacion.regla.tema}`; respuesta = clasificacion.regla.respuesta; }
+      if (clasificacion.tipo === "ayuda") { intencion = "ayuda"; respuesta = RESPUESTA_AYUDA; }
     }
     if (sesion.rol !== "Servicio") {
       await obtenerPool().query("INSERT INTO CHATBOT_LOGS (id_credencial, pregunta_usuario, intencion, respuesta_generada, motor) VALUES ($1, $2, $3, $4, $5)", [sesion.id, texto, intencion, respuesta, motor]);
