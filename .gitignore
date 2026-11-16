@@ -31,3 +31,10 @@ Thumbs.db
 # Cobertura y pruebas
 coverage/
 
+
+# SIGEB
+dist/
+respaldos/
+infra/nginx/certs/
+.expo/
+app-movil/.expo/

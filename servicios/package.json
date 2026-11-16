@@ -1,0 +1,47 @@
+{
+  "name": "sigeb-servicios",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Microservicios REST de SIGEB (NestJS), uno por función del Product Backlog.",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:unit": "jest tests/unit",
+    "test:integracion": "jest tests/integracion --runInBand",
+    "inicio": "node scripts/iniciar-todos.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "11.1.6",
+    "@nestjs/core": "11.1.6",
+    "@nestjs/platform-express": "11.1.6",
+    "class-transformer": "0.5.1",
+    "class-validator": "0.14.1",
+    "cookie-parser": "1.4.7",
+    "jose": "5.9.6",
+    "nodemailer": "6.9.16",
+    "pg": "8.13.1",
+    "reflect-metadata": "0.2.2",
+    "rxjs": "7.8.1"
+  },
+  "devDependencies": {
+    "@types/cookie-parser": "1.4.8",
+    "@types/express": "5.0.0",
+    "@types/jest": "29.5.14",
+    "@types/node": "20.16.10",
+    "@types/nodemailer": "6.4.17",
+    "@types/pg": "8.11.10",
+    "@types/supertest": "6.0.2",
+    "jest": "29.7.0",
+    "supertest": "7.0.0",
+    "ts-jest": "29.2.5",
+    "typescript": "5.6.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"],
+    "testMatch": ["**/*.test.ts"],
+    "transform": { "^.+\\.ts$": ["ts-jest", { "tsconfig": "tsconfig.json" }] },
+    "collectCoverageFrom": ["comun/**/*.ts", "*/src/**/*.ts"]
+  }
+}

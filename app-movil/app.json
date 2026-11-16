@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "SIGEB Biblioteca",
+    "slug": "sigeb-biblioteca",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "platforms": [
+      "android",
+      "ios"
+    ],
+    "android": {
+      "package": "mx.edu.ducky.sigeb"
+    },
+    "ios": {
+      "bundleIdentifier": "mx.edu.ducky.sigeb",
+      "supportsTablet": true
+    },
+    "extra": {
+      "urlApi": "https://biblioteca.ducky.edu.mx"
+    },
+    "plugins": [
+      "expo-asset"
+    ]
+  }
+}

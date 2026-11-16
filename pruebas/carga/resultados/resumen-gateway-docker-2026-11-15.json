@@ -1,0 +1,143 @@
+{
+    "root_group": {
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+            "búsqueda 200": {
+                "name": "búsqueda 200",
+                "path": "::búsqueda 200",
+                "id": "b80832fdabbf79a5237ab210cf8e9629",
+                "passes": 5606,
+                "fails": 0
+            },
+            "chatbot 200": {
+                "fails": 0,
+                "name": "chatbot 200",
+                "path": "::chatbot 200",
+                "id": "f515819b820bb0ba2fe056200584c768",
+                "passes": 5606
+            }
+        },
+        "name": "",
+        "path": ""
+    },
+    "metrics": {
+        "http_req_failed": {
+            "passes": 0,
+            "fails": 11213,
+            "thresholds": {
+                "rate<0.01": false
+            },
+            "value": 0
+        },
+        "checks": {
+            "passes": 11212,
+            "fails": 0,
+            "value": 1
+        },
+        "http_req_connecting": {
+            "avg": 0.04149964327120305,
+            "min": 0,
+            "med": 0,
+            "max": 14.6477,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "http_req_duration{expected_response:true}": {
+            "avg": 37.759158093284725,
+            "min": 4.5431,
+            "med": 28.6043,
+            "max": 387.5583,
+            "p(90)": 68.64004000000004,
+            "p(95)": 81.47609999999999
+        },
+        "vus": {
+            "value": 25,
+            "min": 25,
+            "max": 100
+        },
+        "vus_max": {
+            "max": 100,
+            "value": 100,
+            "min": 100
+        },
+        "http_req_waiting": {
+            "avg": 37.2210866940159,
+            "min": 4.4016,
+            "med": 28.063,
+            "max": 387.2178,
+            "p(90)": 68.17602000000001,
+            "p(95)": 80.98867999999999
+        },
+        "http_req_sending": {
+            "avg": 0.36265547132792236,
+            "min": 0,
+            "med": 0.5089,
+            "max": 5.0723,
+            "p(90)": 0.7062600000000002,
+            "p(95)": 0.9661799999999999
+        },
+        "data_received": {
+            "count": 21082051,
+            "rate": 344632.88463925157
+        },
+        "http_reqs": {
+            "count": 11213,
+            "rate": 183.30135599519835
+        },
+        "http_req_blocked": {
+            "p(95)": 0,
+            "avg": 1.3766975385713005,
+            "min": 0,
+            "med": 0,
+            "max": 255.1024,
+            "p(90)": 0
+        },
+        "http_req_duration": {
+            "med": 28.6043,
+            "max": 387.5583,
+            "p(90)": 68.64004000000004,
+            "p(95)": 81.47609999999999,
+            "avg": 37.759158093284725,
+            "min": 4.5431,
+            "thresholds": {
+                "p(95)<3000": false
+            }
+        },
+        "http_req_tls_handshaking": {
+            "avg": 1.3266809417640237,
+            "min": 0,
+            "med": 0,
+            "max": 248.0667,
+            "p(90)": 0,
+            "p(95)": 0
+        },
+        "iterations": {
+            "count": 5606,
+            "rate": 91.64250438857415
+        },
+        "http_req_receiving": {
+            "med": 0,
+            "max": 8.1396,
+            "p(90)": 0.6587,
+            "p(95)": 0.9893599999999998,
+            "avg": 0.1754159279407831,
+            "min": 0
+        },
+        "data_sent": {
+            "count": 1177261,
+            "rate": 19244.942268818624
+        },
+        "iteration_duration": {
+            "med": 1070.0272,
+            "max": 1803.3735,
+            "p(90)": 1121.6732,
+            "p(95)": 1140.73625,
+            "avg": 1079.4010580092781,
+            "min": 1012.1062
+        }
+    },
+    "setup_data": {
+        "token": "eyJhbGciOiJIUzI1NiJ9.eyJpZGVudGlmaWNhZG9yIjoiQUxVMDAzIiwibm9tYnJlIjoiQWx1bW5vIEFMVTAwMyIsInJvbCI6IkFsdW1ubyIsInN1YiI6IjUiLCJpc3MiOiJzaWdlYiIsImlhdCI6MTc5NDc4OTg1NywiZXhwIjoxNzk0ODE4NjU3fQ.6zz6FNGDuyO-QLZfUDEHAugPQHvTredhFoygEj8Ezzg"
+    }
+}

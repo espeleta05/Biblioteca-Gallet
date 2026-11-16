@@ -1,15 +1,16 @@
+import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata = {
-  title: "SIGEB | Biblioteca universitaria",
-  description: "Sistema de gestión bibliotecaria",
+  title: "SIGEB · Biblioteca Universidad Ducky",
+  description: "Sistema Integral de Gestión Bibliotecaria",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{ children: React.ReactNode }>) {
+export const viewport = { width: "device-width", initialScale: 1 };
+
+export default function Raiz({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
+    <html lang="es">
       <body>{children}</body>
     </html>
   );
