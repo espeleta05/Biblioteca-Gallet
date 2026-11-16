@@ -29,7 +29,9 @@ services:
     volumes:
       - datos-sigeb:/var/lib/postgresql/data
       - ./db/esquema.sql:/docker-entrypoint-initdb.d/01-esquema.sql:ro
-      - ./db/datos.sql:/docker-entrypoint-initdb.d/02-datos.sql:ro
+      - ./db/datos-base.sql:/docker-entrypoint-initdb.d/02-datos-base.sql:ro
+      # Pruebas: datos-prueba.sql. Producción: DATOS_PRUEBA=sin-datos-prueba.sql en .env.
+      - ./db/${DATOS_PRUEBA:-datos-prueba.sql}:/docker-entrypoint-initdb.d/03-datos-prueba.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U sigeb -d sigeb"]
       interval: 5s

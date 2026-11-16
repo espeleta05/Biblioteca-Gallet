@@ -1,7 +1,7 @@
 -- SIGEB · Esquema de la base de datos propia (PostgreSQL 14+).
 -- Propuesta SIGEB 3.1, nivel 4 ("caja verde"): usuarios, libros, fichas,
 -- préstamos, listas de espera, multas y pagos. Diagrama: docs/modelo-datos.md.
--- Ejecutar antes de db/datos.sql. Es idempotente: borra y recrea las tablas.
+-- Ejecutar antes de db/datos-base.sql (y de db/datos-prueba.sql en pruebas). Es idempotente: borra y recrea las tablas.
 
 DROP TABLE IF EXISTS CHATBOT_LOGS, CHATBOT_REGLAS, SOLICITUDES_COMPRA, AVISOS, RECIBOS,
   LISTA_ESPERA, SUSPENSIONES, PAGOS, MULTAS, RENOVACIONES, PRESTAMOS, EJEMPLARES,

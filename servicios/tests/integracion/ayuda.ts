@@ -1,7 +1,7 @@
 /**
  * Utilidades para pruebas de integración (SWEBOK 05: interacción entre módulos
  * y base de datos). Usan una base PostgreSQL de pruebas que se recrea con
- * db/esquema.sql y db/datos.sql antes de cada archivo de pruebas.
+ * db/esquema.sql, db/datos-base.sql y db/datos-prueba.sql antes de cada archivo de pruebas.
  */
 process.env.DATABASE_URL ??= "postgres://sigeb@localhost:55432/sigeb";
 process.env.JWT_SECRET ??= "secreto-de-pruebas-sigeb-0123456789-abcdef";
@@ -20,7 +20,8 @@ const RAIZ = join(__dirname, "..", "..", "..");
 export async function reiniciarBase(): Promise<void> {
   const pool = obtenerPool();
   await pool.query(readFileSync(join(RAIZ, "db", "esquema.sql"), "utf8"));
-  await pool.query(readFileSync(join(RAIZ, "db", "datos.sql"), "utf8"));
+  await pool.query(readFileSync(join(RAIZ, "db", "datos-base.sql"), "utf8"));
+  await pool.query(readFileSync(join(RAIZ, "db", "datos-prueba.sql"), "utf8"));
 }
 
 export async function levantar(modulo: Type<unknown>, nombre: string): Promise<INestApplication> {

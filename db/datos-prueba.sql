@@ -1,16 +1,6 @@
--- SIGEB · Datos iniciales para el ambiente de pruebas (Propuesta 6.3, Sprint 1:
--- "carga de catálogo de prueba"). Ejecutar después de db/esquema.sql.
--- Contraseña de todas las cuentas de prueba: 1234 (hash scrypt). Cambiarla en producción.
-
--- Reglas 1, 2, 5 y 6. El personal de la biblioteca no es solicitante (0 ejemplares).
--- Colaborador: la propuesta no le fija reglas propias; se aplican las de alumno
--- hasta que el Product Owner indique otra cosa (docs/decisiones-pendientes.md).
-INSERT INTO ROLES (id_rol, nombre_rol, dias_prestamo, max_ejemplares, max_renovaciones) VALUES
-    (1, 'Administrador', 0, 0, 0),
-    (2, 'Bibliotecario', 0, 0, 0),
-    (3, 'Alumno',        5, 2, 2),
-    (4, 'Profesor',     10, 2, 3),
-    (5, 'Colaborador',   5, 2, 2);
+-- SIGEB · Datos SOLO para el ambiente de pruebas (Propuesta 6.3, Sprint 1:
+-- "carga de catálogo de prueba"). Ejecutar después de db/datos-base.sql.
+-- NUNCA en producción: crea cuentas con la contraseña 1234 (hash scrypt).
 
 -- Personal de la biblioteca.
 INSERT INTO CREDENCIALES (id_credencial, id_rol, matricula_nomina, contrasena_hash) VALUES
@@ -21,7 +11,6 @@ INSERT INTO PERSONAL_BIBLIOTECA (id_credencial, nombre_completo, correo_instituc
     (2, 'Mariana Torres',      'mariana.torres@ducky.edu.mx', '8181000041');
 -- Los IDs explícitos no avanzan la secuencia de identidad; se alinea a mano.
 SELECT setval(pg_get_serial_sequence('credenciales', 'id_credencial'), (SELECT MAX(id_credencial) FROM CREDENCIALES));
-SELECT setval(pg_get_serial_sequence('roles', 'id_rol'), (SELECT MAX(id_rol) FROM ROLES));
 
 -- Cuentas de alumnos, profesores y colaboradores. Sus datos se verifican contra la
 -- base de datos escolar con POST /api/usuarios/sincronizacion (Propuesta 3.5).
@@ -91,19 +80,3 @@ WHERE l.titulo LIKE 'Libro de demostración %';
 INSERT INTO EJEMPLARES (id_libro, clave_ejemplar, piso, area, pasillo, estante)
 SELECT l.id_libro, l.isbn || '-001', 'Piso ' || (1 + l.id_libro % 3), 'General', 'D', LPAD((l.id_libro % 20)::text, 2, '0')
 FROM LIBROS l WHERE l.titulo LIKE 'Libro de demostración %';
-
--- Tipo de cambio de respaldo; el servicio lo actualiza a diario desde Banxico.
-INSERT INTO TIPO_CAMBIO (fecha, valor_mxn, fuente) VALUES (DATE '2026-11-13', 18.2500, 'Carga inicial');
-
--- Base de conocimiento del chatbot (Sprint 4). Validar con la Biblioteca.
-INSERT INTO CHATBOT_REGLAS (tema, pregunta_frecuente, palabras_clave, respuesta_bot) VALUES
-    ('Vigencias', '¿Cuántos días dura un préstamo?', 'cuantos dias dura vigencia plazo prestamo vence tiempo',
-     'Alumnos y colaboradores: 5 días hábiles. Profesores: 10 días hábiles. Sábados y domingos no cuentan.'),
-    ('Renovaciones', '¿Cuántas veces puedo renovar un libro?', 'renovar renovacion renuevo extender ampliar',
-     'Alumnos y colaboradores pueden renovar cada préstamo hasta 2 veces; profesores hasta 3. Un préstamo vencido ya no se renueva.'),
-    ('Multas', '¿Cuánto es la multa por entregar tarde?', 'multa retraso tarde atraso cobro pagar costo dia',
-     'La multa es de $10 pesos por cada día de retraso. Se paga en Tesorería y la biblioteca registra el pago.'),
-    ('Costos de reposición', '¿Cuánto pago si pierdo o daño un libro?', 'perdi pierdo perdida daño dañe robo reponer reposicion',
-     'Se cobra el valor presente del libro: el precio de su última compra en dólares por el tipo de cambio del día publicado por Banxico.'),
-    ('Préstamos', '¿Cuántos libros puedo llevar?', 'cuantos libros llevar maximo limite ejemplares pedir prestar',
-     'Puedes tener hasta 2 ejemplares prestados a la vez, siempre que no debas multas ni tengas préstamos vencidos. Los libros de consulta interna o reservados no se prestan.');

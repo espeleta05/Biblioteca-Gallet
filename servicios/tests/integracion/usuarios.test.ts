@@ -7,6 +7,7 @@ import { apagar, levantar, reiniciarBase, tokenDe } from "./ayuda";
 import type { INestApplication } from "@nestjs/common";
 import request from "supertest";
 import { ModuloUsuarios } from "../../usuarios/src/main";
+import { crearAdministrador } from "../../usuarios/src/crear-administrador";
 
 let app: INestApplication;
 const http = () => request(app.getHttpServer());
@@ -99,6 +100,14 @@ describe("Gestión de personal", () => {
     const lista = await http().get("/api/usuarios?q=ALU010").set("Authorization", admin);
     expect((await http().patch(`/api/usuarios/${lista.body[0].id}`).set("Authorization", admin).send({ estatus: "Inactiva" })).status).toBe(200);
     expect((await http().post("/api/auth/sesion").send({ identificador: "ALU010", contrasena: "1234" })).status).toBe(403);
+  });
+
+  test("despliegue: crea el primer administrador real y rechaza datos inseguros", async () => {
+    await expect(crearAdministrador("A-0001", "Ana López", "ana.lopez@ducky.edu.mx", "corta")).rejects.toThrow(/al menos 12 caracteres/);
+    await expect(crearAdministrador("admin", "Otro", "otro@ducky.edu.mx", "una-contrasena-larga")).rejects.toThrow(/ya existe/);
+    await crearAdministrador("A-0001", "Ana López", "ana.lopez@ducky.edu.mx", "una-contrasena-larga");
+    const sesion = await http().post("/api/auth/sesion").send({ identificador: "A-0001", contrasena: "una-contrasena-larga" });
+    expect(sesion.body.sesion).toMatchObject({ rol: "Administrador", nombre: "Ana López" });
   });
 
   test("los datos escolares no se editan en SIGEB", async () => {

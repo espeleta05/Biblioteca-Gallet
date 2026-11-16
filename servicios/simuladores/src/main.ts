@@ -25,7 +25,7 @@ function responder(respuesta: ServerResponse, estado: number, cuerpo: unknown): 
 
 const pad = (n: number, largo = 3) => String(n).padStart(largo, "0");
 
-/** Padrón escolar de prueba: coincide con db/datos.sql, más un alumno nuevo y uno dado de baja. */
+/** Padrón escolar de prueba: coincide con db/datos-prueba.sql, más un alumno nuevo y uno dado de baja. */
 export function padronEscolar() {
   const alumnos = Array.from({ length: 101 }, (_, i) => ({ identificador: `ALU${pad(i + 1)}`, tipo: "Alumno", nombre: `Alumno ALU${pad(i + 1)}`, correo: `alu${pad(i + 1)}@ducky.edu.mx`, telefono: `81820${pad(i + 1, 5)}`, activo: i + 1 !== 100 }));
   const profesores = Array.from({ length: 20 }, (_, i) => ({ identificador: `PROF${pad(i + 1)}`, tipo: "Profesor", nombre: `Profesor PROF${pad(i + 1)}`, correo: `prof${pad(i + 1)}@ducky.edu.mx`, telefono: `81821${pad(i + 1, 5)}`, activo: true }));
