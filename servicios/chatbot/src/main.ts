@@ -2,19 +2,20 @@
  * Microservicio "Chatbot" (Sprint 4): consulta de reglas y políticas
  * (vigencias, renovaciones, multas y costos de reposición) y de préstamos
  * vigentes, vencimientos y multas del usuario. Web y app, 24 horas.
- * Motor: Dialogflow CX (Google Cloud) si está configurado; si no, el
+ * Motores: Dialogflow CX (Google Cloud) si está configurado; si no, el
  * clasificador local sobre la base de conocimiento CHATBOT_REGLAS.
  */
 import "reflect-metadata";
-import { Body, Controller, Get, HttpCode, Injectable, Module, Post } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, Injectable, Module, type OnApplicationBootstrap, Post } from "@nestjs/common";
 import { IsString, Length } from "class-validator";
 import type { Sesion } from "../../comun/auth";
 import { formatoPesos } from "../../comun/avisos";
 import { PUERTOS } from "../../comun/config";
 import { consultar, obtenerPool } from "../../comun/db";
+import { contextoPersona, ejecutarAgente, instrucciones, necesitaBuscarLibros, type DatosPersona, type Herramientas } from "../../comun/dominio/agente";
 import { clasificar, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type IntencionPersonal, type ReglaConocimiento } from "../../comun/dominio/chatbot";
 import { hoyEnBiblioteca } from "../../comun/dominio/fechas";
-import { detectarIntencionDialogflow } from "../../comun/integraciones";
+import { conversarConOllama, detectarIntencionDialogflow, precalentarOllama } from "../../comun/integraciones";
 import { iniciarServicio, UsuarioActual } from "../../comun/nest";
 
 export class MensajeDto { @IsString() @Length(1, 300, { message: "Escribe una pregunta de hasta 300 caracteres." }) texto!: string; }
@@ -23,7 +24,18 @@ export class MensajeDto { @IsString() @Length(1, 300, { message: "Escribe una pr
 const INTENCIONES_DIALOGFLOW: Record<string, IntencionPersonal> = { "consultar.prestamos": "mis_prestamos", "consultar.vencimientos": "mis_vencimientos", "consultar.multas": "mis_multas" };
 
 @Injectable()
-export class ServicioChatbot {
+export class ServicioChatbot implements OnApplicationBootstrap {
+  /** Carga Llama en memoria al arrancar (sin esperar): la primera pregunta no paga la carga del modelo. */
+  onApplicationBootstrap() {
+    void this.precalentar().catch((error: Error) => console.warn("[chatbot] No se pudo precargar Llama:", error.message));
+  }
+
+  /** Carga el modelo y procesa las instrucciones fijas una vez: Ollama reutiliza ese inicio en cada pregunta. */
+  private async precalentar() {
+    await precalentarOllama();
+    await conversarConOllama([{ role: "system", content: instrucciones(await this.reglas()) }, { role: "user", content: "Hola" }], [], 1);
+  }
+
   private reglas(): Promise<ReglaConocimiento[]> {
     return consultar<ReglaConocimiento>(`SELECT id_regla AS id, tema, palabras_clave AS "palabrasClave", respuesta_bot AS respuesta FROM CHATBOT_REGLAS`);
   }
@@ -46,6 +58,56 @@ export class ServicioChatbot {
     return `Tienes ${prestamos.length} préstamo(s) vigente(s): ${lineas.join("; ")}.`;
   }
 
+  /** Préstamos y multas de quien pregunta, leídos con su sesión (nunca con lo que escribe). */
+  private async datosPersona(sesion: Sesion): Promise<DatosPersona> {
+    const hoy = hoyEnBiblioteca();
+    const esPersonal = sesion.rol === "Administrador" || sesion.rol === "Bibliotecario" || sesion.rol === "Servicio";
+    if (esPersonal) return { nombre: sesion.nombre, rol: sesion.rol, hoy, esPersonal, prestamos: [], multas: [] };
+    const [prestamos, multas] = await Promise.all([
+      consultar<{ titulo: string; vence: string; renovaciones: number }>(`
+        SELECT l.titulo, p.fecha_vencimiento::text AS vence, (SELECT COUNT(*)::int FROM RENOVACIONES r WHERE r.id_prestamo = p.id_prestamo) AS renovaciones
+        FROM PRESTAMOS p JOIN EJEMPLARES e ON e.id_ejemplar = p.id_ejemplar JOIN LIBROS l ON l.id_libro = e.id_libro
+        WHERE p.id_credencial = $1 AND p.estado = 'Activo' ORDER BY p.fecha_vencimiento`, [sesion.id]),
+      consultar<{ motivo: string; montoMxn: number }>(
+        "SELECT motivo, monto_mxn::float AS \"montoMxn\" FROM MULTAS WHERE id_credencial = $1 AND estatus = 'Pendiente' ORDER BY fecha_generacion", [sesion.id]),
+    ]);
+    return { nombre: sesion.nombre, rol: sesion.rol, hoy, esPersonal, prestamos: prestamos.map((p) => ({ ...p, vencido: p.vence < hoy })), multas };
+  }
+
+  /** Herramienta del agente: búsqueda en el catálogo (ADR 0003). */
+  private herramientas(): Herramientas {
+    return {
+      buscar_libros: async ({ texto }) => {
+        const q = typeof texto === "string" ? texto.trim() : "";
+        if (q.length < 3) return { error: "Escribe por lo menos 3 caracteres del título, autor o tema." };
+        const libros = await consultar(`
+          SELECT l.titulo, l.tipo_uso AS "tipoUso",
+                 (SELECT string_agg(a.nombre_autor, ', ') FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro) AS autores,
+                 COUNT(e.id_ejemplar) FILTER (WHERE e.estado = 'Disponible')::int AS disponibles,
+                 COALESCE(json_agg(DISTINCT COALESCE(e.piso || ', área ' || e.area || ', pasillo ' || e.pasillo || ', estante ' || e.estante, 'sin ubicación registrada: preguntar en el mostrador'))
+                   FILTER (WHERE e.estado = 'Disponible'), '[]') AS ubicaciones,
+                 (SELECT MIN(p.fecha_vencimiento)::text FROM PRESTAMOS p JOIN EJEMPLARES x ON x.id_ejemplar = p.id_ejemplar WHERE x.id_libro = l.id_libro AND p.estado = 'Activo') AS "proximaDevolucion"
+          FROM LIBROS l JOIN TEMAS t ON t.id_tema = l.id_tema JOIN EJEMPLARES e ON e.id_libro = l.id_libro AND e.estado <> 'Dado de baja'
+          WHERE l.titulo ILIKE '%' || $1 || '%' OR t.nombre_tema ILIKE '%' || $1 || '%'
+             OR EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND a.nombre_autor ILIKE '%' || $1 || '%')
+          GROUP BY l.id_libro ORDER BY disponibles DESC, l.titulo LIMIT 5`, [q]);
+        return libros.length ? { libros } : { libros: [], aviso: "No se encontraron libros con ese texto." };
+      },
+    };
+  }
+
+  /** Pregunta abierta → agente con Llama; null si Ollama no está o no respondió a tiempo. */
+  private async preguntarAlAgente(texto: string, sesion: Sesion, reglas: ReglaConocimiento[]) {
+    try {
+      // Instrucciones fijas primero (Ollama reutiliza ese inicio entre preguntas) y luego los datos de la persona.
+      const sistema = [instrucciones(reglas), contextoPersona(await this.datosPersona(sesion))];
+      return await ejecutarAgente(texto, sistema, conversarConOllama, this.herramientas(), { conHerramientas: necesitaBuscarLibros(texto) });
+    } catch (error) {
+      console.warn("[chatbot] Llama (Ollama) no respondió; se usa el clasificador local:", (error as Error).message);
+      return null;
+    }
+  }
+
   async responder(texto: string, sesion: Sesion) {
     let motor = "Clasificador local";
     let intencion = "desconocida";
@@ -62,10 +124,21 @@ export class ServicioChatbot {
       const personal = INTENCIONES_DIALOGFLOW[dialogflow.intencion];
       respuesta = personal ? await this.respuestaPersonal(personal, sesion) : dialogflow.respuesta || RESPUESTA_DESCONOCIDA;
     } else {
-      const clasificacion = clasificar(texto, await this.reglas());
-      if (clasificacion.tipo === "personal") { intencion = clasificacion.intencion; respuesta = await this.respuestaPersonal(clasificacion.intencion, sesion); }
-      if (clasificacion.tipo === "regla") { intencion = `regla:${clasificacion.regla.tema}`; respuesta = clasificacion.regla.respuesta; }
-      if (clasificacion.tipo === "ayuda") { intencion = "ayuda"; respuesta = RESPUESTA_AYUDA; }
+      const reglas = await this.reglas();
+      const clasificacion = clasificar(texto, reglas);
+      // Lo que el clasificador reconoce con seguridad se responde al instante (RNF de 3 s);
+      // las preguntas abiertas o ambiguas van al agente con Llama.
+      const segura = clasificacion.tipo === "personal" || clasificacion.tipo === "ayuda" || (clasificacion.tipo === "regla" && clasificacion.puntaje >= 2);
+      const agente = segura ? null : await this.preguntarAlAgente(texto, sesion, reglas);
+      if (agente) {
+        motor = "Llama 3.2 (Ollama)";
+        intencion = (agente.herramientas.length ? `agente:${[...new Set(agente.herramientas)].join("+")}` : "agente").slice(0, 40);
+        respuesta = agente.respuesta;
+      } else {
+        if (clasificacion.tipo === "personal") { intencion = clasificacion.intencion; respuesta = await this.respuestaPersonal(clasificacion.intencion, sesion); }
+        if (clasificacion.tipo === "regla") { intencion = `regla:${clasificacion.regla.tema}`; respuesta = clasificacion.regla.respuesta; }
+        if (clasificacion.tipo === "ayuda") { intencion = "ayuda"; respuesta = RESPUESTA_AYUDA; }
+      }
     }
     if (sesion.rol !== "Servicio") {
       await obtenerPool().query("INSERT INTO CHATBOT_LOGS (id_credencial, pregunta_usuario, intencion, respuesta_generada, motor) VALUES ($1, $2, $3, $4, $5)", [sesion.id, texto, intencion, respuesta, motor]);

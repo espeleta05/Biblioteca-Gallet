@@ -21,6 +21,10 @@ describe("clasificar", () => {
     ["¿Tengo multas?", "personal", "mis_multas"],
     ["¿Cuánto debo?", "personal", "mis_multas"],
     ["¿Cuándo vence mi libro?", "personal", "mis_vencimientos"],
+    // Datos personales exactos: nunca los redacta el modelo de lenguaje (ADR 0003).
+    ["¿Cuándo tengo que regresar el libro que me llevé?", "personal", "mis_vencimientos"],
+    ["¿Me puedes decir hasta cuándo tengo el libro?", "personal", "mis_vencimientos"],
+    ["¿Para cuándo debo entregarlo?", "personal", "mis_vencimientos"],
     ["¿Qué libros tengo?", "personal", "mis_prestamos"],
     ["mis préstamos", "personal", "mis_prestamos"],
   ])("%s → %s %s", (pregunta, tipo, esperado) => {

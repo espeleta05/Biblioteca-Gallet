@@ -106,6 +106,8 @@ Cada paso indica entre corchetes la historia de usuario y el escenario de la Evi
 
 1. Como `B-0041`, abre el **Asistente de la biblioteca** y pregunta "¿Cuántos días dura un préstamo?".
 2. En incógnito, entra con `ALU005` y pregunta "¿Cuándo vence mi libro?" y luego "¿Tengo multas?". **Punto a explicar:** responde con sus datos reales.
+3. **Agente con Llama** (preguntas abiertas). Pregunta "¿Para qué sirve SIGEB?" y "¿En qué plataformas puedo usarlo?" [HU3-SP7]. Luego "¿Hay libros de java disponibles y dónde están?": busca en el catálogo y da la ubicación. Por último "¿Cuál es la capital de Francia?": responde que solo ayuda con la Biblioteca. **Punto a explicar:** las preguntas frecuentes se responden al instante; las abiertas las contesta Llama 3.2, que corre dentro del servidor (Ollama), sin costo y sin que los datos salgan de la Universidad. Tarda unos segundos porque no hay tarjeta gráfica. Si Ollama está apagado, responde el clasificador. (ADR 0003)
+   - Antes de la demo, comprueba que el modelo esté cargado con `docker compose exec ollama ollama ps`.
 
 ## Cierre (1 minuto)
 

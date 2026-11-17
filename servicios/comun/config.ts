@@ -51,6 +51,13 @@ export const config = {
       ? { proyecto, agente, token, region: process.env.DIALOGFLOW_LOCATION ?? "us-central1", idioma: "es" }
       : undefined;
   },
+  /** Llama en Ollama (ADR 0003). Sin URL_OLLAMA el chatbot usa solo su clasificador local. */
+  ollama: () => {
+    const url = opcional("URL_OLLAMA");
+    return url
+      ? { url: url.replace(/\/$/, ""), modelo: process.env.MODELO_OLLAMA ?? "llama3.2:3b", tiempoLimiteMs: Number(process.env.OLLAMA_TIEMPO_LIMITE_MS ?? 45_000) }
+      : undefined;
+  },
   urlEscolar: () => opcional("URL_BD_ESCOLAR") ?? "http://localhost:4101",
   urlTesoreria: () => opcional("URL_TESORERIA") ?? "http://localhost:4102",
 };

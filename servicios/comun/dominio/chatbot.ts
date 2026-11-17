@@ -24,7 +24,8 @@ export function normalizar(texto: string): string {
 
 const PERSONALES: Array<{ intencion: IntencionPersonal; patron: RegExp }> = [
   { intencion: "mis_multas", patron: /\b(mis|tengo|debo|cuanto debo)\b.*\b(multa|multas|adeudo|adeudos|debo)\b|\bcuanto debo\b/ },
-  { intencion: "mis_vencimientos", patron: /\b(cuando|que dia|fecha)\b.*\b(vence|vencen|entrego|devuelvo|devolver|regreso)\b|\bmis vencimientos\b/ },
+  // Datos personales exactos: siempre con respuesta determinista, nunca redactados por el modelo de lenguaje (ADR 0003).
+  { intencion: "mis_vencimientos", patron: /\b(cuando|que dia|fecha|hasta cuando|para cuando)\b.*\b(vence|vencen|vencio|entrego|entregar|entregarlo|devuelvo|devolver|devolverlo|regreso|regresar|regresarlo|tengo el libro|tengo los libros)\b|\bmis vencimientos\b/ },
   { intencion: "mis_prestamos", patron: /\b(mis|tengo)\b.*\b(prestamo|prestamos|libros)\b|\bque libros tengo\b/ },
 ];
 

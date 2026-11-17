@@ -7,7 +7,7 @@ type Mensaje = { de: "usuario" | "bot"; texto: string };
 
 export function Chatbot() {
   const [abierto, setAbierto] = useState(false);
-  const [mensajes, setMensajes] = useState<Mensaje[]>([{ de: "bot", texto: "Hola, soy el asistente de la biblioteca. Pregúntame por vigencias, renovaciones, multas, costos de reposición o por tus préstamos." }]);
+  const [mensajes, setMensajes] = useState<Mensaje[]>([{ de: "bot", texto: "Hola, soy el asistente de la biblioteca. Pregúntame por vigencias, renovaciones, multas, costos de reposición, tus préstamos, si hay un libro y dónde está, o qué es SIGEB." }]);
   const [sugerencias, setSugerencias] = useState<string[]>([]);
   const [enviando, setEnviando] = useState(false);
   const final = useRef<HTMLDivElement>(null);
