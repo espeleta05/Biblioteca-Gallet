@@ -31,7 +31,6 @@ export function Multas({ sesion }: { sesion: Sesion }) {
   const multas = useDatos(() => api<Multa[]>(`/api/multas${consulta(filtro)}`), [filtro]);
   const vencidos = useDatos(() => api<Vencido[]>("/api/multas/prestamos-vencidos"), [pestana]);
   const adeudos = useDatos(() => api<Deudor[]>("/api/adeudos"), [pestana]);
-  const tipoCambio = useDatos(() => api<{ fecha: string; valor: number; fuente: string; aviso?: string }>("/api/tipo-cambio"), []);
 
   const pagar = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); if (!pago) return; const d = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -54,7 +53,6 @@ export function Multas({ sesion }: { sesion: Sesion }) {
     <>
       <div className="encabezado">
         <div><h2>Gestión de multas</h2></div>
-        {tipoCambio.datos && <p><Etiqueta color="azul">Tipo de cambio: {tipoCambio.datos.valor.toFixed(4)} MXN/USD · {fecha(tipoCambio.datos.fecha)}</Etiqueta></p>}
       </div>
       <Aviso mensaje={mensaje} alCerrar={() => setMensaje(null)} />
       <div className="pestanas" role="tablist">
