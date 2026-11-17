@@ -55,6 +55,16 @@ describe("Chatbot", () => {
     expect(rows[0].n).toBeGreaterThanOrEqual(7);
   });
 
+  test.each([
+    ["¿Qué puedo preguntar?", "ayuda", /Por ejemplo/],
+    ["Buenos días", "ayuda", /Soy el asistente/],
+    ["¿Hasta cuándo me puedo quedar el libro?", "regla:Vigencias", /5 días hábiles/],
+    ["Se me perdió un libro, ¿qué hago?", "regla:Costos de reposición", /Banxico/],
+  ])("formas naturales de preguntar: %s", async (pregunta, intencion, respuesta) => {
+    const r = await preguntar("ALU031", pregunta);
+    expect(r.body).toMatchObject({ intencion, respuesta: expect.stringMatching(respuesta) });
+  });
+
   test("pregunta fuera de dominio → respuesta de ayuda", async () => {
     expect((await preguntar("ALU031", "¿Quién ganó el mundial?")).body.intencion).toBe("desconocida");
   });
@@ -70,5 +80,5 @@ describe("Ver la base de datos de la escuela y verificar usuarios", () => {
     expect(baja.status).toBe(403);
     expect(baja.body.error).toMatch(/base de datos escolar/);
     expect((await request(usuarios.getHttpServer()).post("/api/auth/sesion").send({ identificador: "ALU101", contrasena: "1234" })).status).toBe(200);
-  });
+  }, 30_000); // Proceso por lotes: 126 cuentas en una transacción.
 });

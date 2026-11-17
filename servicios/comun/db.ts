@@ -51,6 +51,23 @@ export async function enTransaccion<T>(trabajo: (cliente: PoolClient) => Promise
   }
 }
 
+/**
+ * Historial de cambios: dato anterior, dato nuevo, fecha y quién lo cambió
+ * (HU4-SP0, HU6-SP0 y HU3-SP1). Solo registra los campos que sí cambiaron.
+ */
+export async function registrarCambios(ejecutor: Ejecutor, entidad: "Cuenta" | "Libro", idEntidad: number,
+  cambios: Array<[campo: string, anterior: unknown, nuevo: unknown]>, idCredencial: number): Promise<string[]> {
+  const texto = (v: unknown) => (v === null || v === undefined ? null : String(v).slice(0, 500));
+  const reales = cambios.filter(([, anterior, nuevo]) => nuevo !== undefined && texto(anterior) !== texto(nuevo));
+  for (const [campo, anterior, nuevo] of reales) {
+    await ejecutor.query(
+      "INSERT INTO HISTORIAL_CAMBIOS (entidad, id_entidad, campo, valor_anterior, valor_nuevo, id_credencial) VALUES ($1, $2, $3, $4, $5, $6)",
+      [entidad, idEntidad, campo, texto(anterior), texto(nuevo), idCredencial],
+    );
+  }
+  return reales.map(([campo]) => campo);
+}
+
 /** Bitácora de operaciones: evidencia para ISO 9001:2015. */
 export async function registrarEnBitacora(ejecutor: Ejecutor, servicio: string, accion: string, detalle: string, idCredencial?: number): Promise<void> {
   await ejecutor.query(

@@ -5,7 +5,7 @@
 import { consultarUno, type Ejecutor, obtenerPool } from "./db";
 import { enviarNotificacion, type Canal, type ResultadoEnvio } from "./integraciones";
 
-export type TipoAviso = "Recibo de préstamo" | "Recibo de pago" | "Aviso de adeudo" | "Lista de espera";
+export type TipoAviso = "Recibo de préstamo" | "Recibo de pago" | "Aviso de adeudo" | "Lista de espera" | "Alta de cuenta";
 
 export type Contacto = { nombre: string; correo: string; telefono: string | null; identificador: string };
 

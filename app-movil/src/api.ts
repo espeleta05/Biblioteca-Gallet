@@ -56,7 +56,13 @@ export async function cerrarSesion(): Promise<void> {
   await SecureStore.deleteItemAsync(CLAVE_TOKEN);
 }
 
-export type Libro = { id: number; titulo: string; autores: string; tema: string; isbn: string; tipoUso: string; existencia: number; disponibles: number; ubicaciones: Array<{ piso: string; area: string; pasillo: string; estante: string }> };
+export type Ubicacion = { piso: string | null; area: string | null; pasillo: string | null; estante: string | null; disponibles?: number };
+export type Libro = { id: number; titulo: string; autores: string; tema: string; editorial?: string; isbn: string; tipoUso: string; existencia: number; disponibles: number; ubicaciones: Ubicacion[]; proximaDevolucion?: string | null };
+
+/** "Piso 2 · Tecnología · pasillo A · estante 14 (1 disponible)" o el aviso de HU1-SP2, escenario 5. */
+export const textoUbicacion = (u: Ubicacion) =>
+  u.piso ? `${u.piso} · ${u.area} · pasillo ${u.pasillo} · estante ${u.estante}${u.disponibles !== undefined ? ` (${u.disponibles} disponible${u.disponibles === 1 ? "" : "s"})` : ""}` : "Ubicación no disponible: pregunta en el mostrador";
+export const fechaCorta = (valor: string) => new Date(`${valor.slice(0, 10)}T12:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 
 export const buscarLibros = (q: string, soloDisponibles: boolean) =>
   pedir<Libro[]>(`/api/busqueda?q=${encodeURIComponent(q)}${soloDisponibles ? "&soloDisponibles=true" : ""}`);

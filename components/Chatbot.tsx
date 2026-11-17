@@ -30,7 +30,7 @@ export function Chatbot() {
 
   return (
     <>
-      <button className="boton primario chatbot-boton" aria-expanded={abierto} aria-controls="chatbot" onClick={() => setAbierto((a) => !a)}>{abierto ? "Cerrar asistente" : "Asistente de la biblioteca"}</button>
+      <button className="boton primario chatbot-boton" aria-expanded={abierto} aria-controls="chatbot" onClick={() => setAbierto((a) => !a)}>{abierto ? "Cerrar asistente" : <span>Asistente<span className="texto-largo"> de la biblioteca</span></span>}</button>
       {abierto && (
         <section id="chatbot" className="chatbot" aria-label="Asistente de la biblioteca">
           <header><strong>Asistente SIGEB</strong><button className="boton chico" onClick={() => setAbierto(false)} aria-label="Cerrar asistente">×</button></header>

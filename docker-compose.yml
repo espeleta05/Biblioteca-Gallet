@@ -9,6 +9,8 @@ x-servicio: &servicio
   restart: unless-stopped
   env_file: .env
   environment: &entorno
+    # Misma zona que la base de datos: las fechas y horas (TIMESTAMP) se leen sin desfase.
+    TZ: America/Monterrey
     DATABASE_URL: postgres://sigeb:${POSTGRES_PASSWORD}@db:5432/sigeb
     URL_USUARIOS: http://usuarios:4001
     URL_PRESTAR_LIBROS: http://prestar-libros:4004
@@ -22,6 +24,9 @@ services:
   db:
     image: postgres:16.4-alpine
     restart: unless-stopped
+    # CURRENT_DATE debe ser la fecha de la biblioteca, no la de UTC (si no, después de las
+    # 6 p.m. las fechas de vencimiento y de multas se corren un día).
+    command: ["postgres", "-c", "timezone=America/Monterrey"]
     environment:
       POSTGRES_DB: sigeb
       POSTGRES_USER: sigeb

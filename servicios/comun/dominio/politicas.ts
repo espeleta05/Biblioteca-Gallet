@@ -13,9 +13,13 @@ export type RolUsuario = "Administrador" | "Bibliotecario" | "Alumno" | "Profeso
 export const TIPOS_USO = ["Préstamo externo", "Consulta interna", "Reservado"] as const;
 export type TipoUso = (typeof TIPOS_USO)[number];
 
-/** Estados posibles de un ejemplar físico. */
-export const ESTADOS_EJEMPLAR = ["Disponible", "Prestado", "Perdido", "Robado", "Dañado"] as const;
+/** Estados posibles de un ejemplar físico. "Dado de baja" solo lo pone la Baja de libros (HU2-SP1). */
+export const ESTADOS_EJEMPLAR = ["Disponible", "Prestado", "Perdido", "Robado", "Dañado", "Dado de baja"] as const;
 export type EstadoEjemplar = (typeof ESTADOS_EJEMPLAR)[number];
+
+/** Motivos de la Baja de libros (HU2-SP1). */
+export const MOTIVOS_BAJA_EJEMPLAR = ["Perdido", "Dañado", "Robado", "Obsoleto"] as const;
+export type MotivoBajaEjemplar = (typeof MOTIVOS_BAJA_EJEMPLAR)[number];
 
 export type PoliticaPrestamo = {
   /** Días hábiles de vigencia (Regla 5 alumnos, Regla 6 maestros). */

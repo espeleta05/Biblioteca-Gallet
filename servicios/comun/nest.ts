@@ -33,7 +33,7 @@ export class GuardiaSesion implements CanActivate {
     const solicitud = contexto.switchToHttp().getRequest<SolicitudConSesion>();
     const token = extraerToken(solicitud.headers as { authorization?: string; cookie?: string }, solicitud.cookies);
     const sesion = token ? await verificarToken(token) : null;
-    const acceso = evaluarAcceso(solicitud.originalUrl, sesion);
+    const acceso = evaluarAcceso(solicitud.originalUrl, sesion, solicitud.method);
     if (!acceso.permitido) throw new HttpException({ error: acceso.mensaje }, acceso.estado);
     if (sesion) solicitud.sesion = sesion;
     return true;
@@ -48,8 +48,16 @@ export const UsuarioActual = createParamDecorator((_dato: unknown, contexto: Exe
 
 /** Una regla de negocio impide la operación (409) y se explican todos los motivos. */
 export class ErrorDeNegocio extends HttpException {
-  constructor(mensaje: string, motivos: string[] = []) {
-    super({ error: mensaje, motivos }, HttpStatus.CONFLICT);
+  /** campos: nombres de los campos del formulario que la web marca con error. */
+  constructor(mensaje: string, motivos: string[] = [], campos: string[] = []) {
+    super(campos.length ? { error: mensaje, motivos, campos } : { error: mensaje, motivos }, HttpStatus.CONFLICT);
+  }
+}
+
+/** Datos que no pasan una validación de negocio (400), con los campos a marcar. */
+export class DatosInvalidos extends HttpException {
+  constructor(mensaje: string, motivos: string[] = [], campos: string[] = []) {
+    super({ error: mensaje, motivos, campos }, HttpStatus.BAD_REQUEST);
   }
 }
 
@@ -81,7 +89,9 @@ export class FiltroErrores implements ExceptionFilter {
     }
     const codigo = (excepcion as { code?: string }).code;
     if (codigo === "23505") {
-      respuesta.status(409).json({ error: "El registro ya existe (dato duplicado).", motivos: [String((excepcion as { detail?: string }).detail ?? "")] });
+      // El detalle de PostgreSQL viene en inglés ("Key (col)=(valor) already exists."): se traduce.
+      const detalle = String((excepcion as { detail?: string }).detail ?? "").match(/\((.+)\)=\((.+)\)/);
+      respuesta.status(409).json({ error: "El registro ya existe (dato duplicado).", motivos: detalle ? [`Ya existe un registro con ${detalle[1]} = ${detalle[2]}.`] : [] });
       return;
     }
     if (codigo === "23514" || codigo === "23503") {
@@ -98,13 +108,23 @@ export class FiltroErrores implements ExceptionFilter {
  * mensaje propio del DTO cuando existe y uno genérico por campo cuando no.
  */
 function erroresDeValidacion(errores: ValidationError[]): HttpException {
-  const motivos = errores.flatMap((error) => {
-    if (error.constraints?.whitelistValidation) return [`El campo "${error.property}" no se reconoce.`];
+  // Los errores de objetos anidados (ubicación, libros de una orden) se aplanan hasta la hoja.
+  const hojas = (lista: ValidationError[], ruta: string[] = []): Array<{ campo: string; ruta: string; error: ValidationError }> =>
+    lista.flatMap((e) => (e.children?.length ? hojas(e.children, [...ruta, e.property]) : [{ campo: e.property, ruta: [...ruta, e.property].join("."), error: e }]));
+  const lista = hojas(errores);
+  const motivos = [...new Set(lista.flatMap(({ campo, error }) => {
+    if (error.constraints?.whitelistValidation) return [`El campo "${campo}" no se reconoce.`];
     const propios = Object.values(error.constraints ?? {}).filter((mensaje) => !/\b(must|should)\b/.test(mensaje));
-    return propios.length ? propios : [`El campo "${error.property}" falta o tiene un formato inválido.`];
-  });
-  return new HttpException({ error: "Los datos enviados no son válidos.", motivos }, HttpStatus.BAD_REQUEST);
+    return propios.length ? propios : [`El campo "${campo}" falta o tiene un formato inválido.`];
+  }))];
+  // Campos con error, para que la web los marque: "piso" o "libros.0.cantidad".
+  const campos = [...new Set(lista.flatMap(({ campo, ruta }) => (ruta === campo ? [campo] : [campo, ruta])))];
+  const propio = (errores[0]?.target?.constructor as { mensajeInvalido?: string } | undefined)?.mensajeInvalido;
+  return new HttpException({ error: propio ?? REVISA_CAMPOS, motivos, campos }, HttpStatus.BAD_REQUEST);
 }
+
+/** Mensaje general de un formulario con errores; un DTO puede definir el suyo con `static mensajeInvalido`. */
+export const REVISA_CAMPOS = "Revisa los campos marcados antes de guardar.";
 
 export async function iniciarServicio(modulo: Type<unknown>, nombre: string, puerto: number): Promise<INestApplication> {
   const app = await crearAplicacion(modulo, nombre);

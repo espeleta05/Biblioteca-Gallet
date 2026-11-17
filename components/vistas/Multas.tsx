@@ -6,7 +6,7 @@
  */
 import { useState, type FormEvent } from "react";
 import { api, consulta, fecha, pesos, type Sesion } from "../../lib/api";
-import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Selector, Tabla, useDatos, type Mensaje } from "../ui";
+import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Pestanas, Selector, Tabla, useDatos, type Mensaje } from "../ui";
 
 type Multa = { id: number; motivo: string; montoMxn: number; diasRetraso: number | null; tipoCambio: number | null; estatus: string; fecha: string; persona: string; identificador: string; titulo: string; folioRecibo: string | null; motivoRevocacion: string | null };
 type Vencido = { id: number; persona: string; identificador: string; titulo: string; vencimiento: string; diasRetraso: number; multaAcumuladaMxn: number };
@@ -31,7 +31,6 @@ export function Multas({ sesion }: { sesion: Sesion }) {
   const multas = useDatos(() => api<Multa[]>(`/api/multas${consulta(filtro)}`), [filtro]);
   const vencidos = useDatos(() => api<Vencido[]>("/api/multas/prestamos-vencidos"), [pestana]);
   const adeudos = useDatos(() => api<Deudor[]>("/api/adeudos"), [pestana]);
-  const tipoCambio = useDatos(() => api<{ fecha: string; valor: number; fuente: string; aviso?: string }>("/api/tipo-cambio"), []);
 
   const pagar = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); if (!pago) return; const d = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -52,22 +51,14 @@ export function Multas({ sesion }: { sesion: Sesion }) {
 
   return (
     <>
-      <div className="encabezado">
-        <div><h2>Gestión de multas</h2><p>Multa por retraso: $10 por día (Regla 3). Reposición: precio USD × tipo de cambio Banxico (Regla 4).</p></div>
-        {tipoCambio.datos && <p><Etiqueta color="azul">Tipo de cambio: {tipoCambio.datos.valor.toFixed(4)} MXN/USD · {fecha(tipoCambio.datos.fecha)}</Etiqueta>{tipoCambio.datos.aviso && <small> {tipoCambio.datos.aviso}</small>}</p>}
-      </div>
       <Aviso mensaje={mensaje} alCerrar={() => setMensaje(null)} />
-      <div className="pestanas" role="tablist">
-        <button role="tab" aria-selected={pestana === "multas"} onClick={() => setPestana("multas")}>Multas</button>
-        <button role="tab" aria-selected={pestana === "vencidos"} onClick={() => setPestana("vencidos")}>Préstamos vencidos</button>
-        <button role="tab" aria-selected={pestana === "adeudos"} onClick={() => setPestana("adeudos")}>Personas con adeudos</button>
-      </div>
+      <Pestanas etiqueta="Multas y adeudos" activa={pestana} alCambiar={setPestana} opciones={[{ id: "multas", texto: "Multas" }, { id: "vencidos", texto: "Préstamos vencidos" }, { id: "adeudos", texto: "Personas con adeudos" }]}>
 
       {pestana === "multas" && (
         <>
           <div className="filtros">
             <Selector etiqueta="Estatus" opciones={["Pendiente", "Pagada", "Revocada"]} todos="Todos" valor={filtro.estatus} alCambiar={(estatus) => setFiltro({ ...filtro, estatus })} />
-            <label className="campo"><span>Persona, matrícula o libro</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
+            <label className="campo ancho"><span>Persona, matrícula o libro</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
           </div>
           <Tabla titulo="Multas" columnas={["Persona", "Libro", "Motivo", "Monto", "Estatus", "Acciones"]} vacio="No hay multas con esos filtros." cantidad={multas.datos?.length ?? 0}>
             {(multas.datos ?? []).map((m) => (
@@ -93,7 +84,7 @@ export function Multas({ sesion }: { sesion: Sesion }) {
       )}
       {pestana === "adeudos" && (
         <>
-          <div className="acciones no-imprimir" style={{ justifyContent: "flex-start", marginBottom: "1rem" }}>
+          <div className="acciones izquierda no-imprimir">
             <button className="boton" onClick={() => exportarCsv(adeudos.datos ?? [])}>Exportar lista (CSV)</button>
             <button className="boton" onClick={() => window.print()}>Imprimir lista</button>
             <button className="boton" onClick={() => void avisar("Correo")}>Enviar avisos por correo</button>
@@ -104,6 +95,7 @@ export function Multas({ sesion }: { sesion: Sesion }) {
           </Tabla>
         </>
       )}
+      </Pestanas>
 
       {pago && (
         <Modal titulo={`Registrar pago · ${pago.persona}`} alCerrar={() => setPago(null)}>

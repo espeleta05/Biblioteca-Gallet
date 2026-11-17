@@ -1,5 +1,5 @@
 /** Clasificación de preguntas del chatbot: tabla de casos por intención. */
-import { clasificar, normalizar, type ReglaConocimiento } from "../../comun/dominio/chatbot";
+import { clasificar, normalizar, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type ReglaConocimiento } from "../../comun/dominio/chatbot";
 
 const reglas: ReglaConocimiento[] = [
   { id: 1, tema: "Vigencias", palabrasClave: "cuantos dias dura vigencia plazo prestamo vence tiempo", respuesta: "5 o 10 días hábiles" },
@@ -32,5 +32,24 @@ describe("clasificar", () => {
 
   test.each(["", "   ", "¿Cuál es la capital de Francia?"])("pregunta fuera de dominio %p → desconocida", (pregunta) => {
     expect(clasificar(pregunta, reglas).tipo).toBe("desconocida");
+  });
+
+  test.each(["¿Qué puedo preguntar?", "Hola", "ayuda", "¿Qué sabes hacer?", "Buenos días"])("saludo o ayuda %p → ayuda", (pregunta) => {
+    expect(clasificar(pregunta, reglas).tipo).toBe("ayuda");
+  });
+
+  test("un saludo con un tema concreto responde el tema, no la ayuda", () => {
+    const r = clasificar("Hola, ¿puedo renovar mi libro?", reglas);
+    expect(r.tipo === "regla" && r.regla.tema).toBe("Renovaciones");
+  });
+});
+
+describe("respuestas fijas", () => {
+  test("la ayuda incluye preguntas de ejemplo de reglas y consultas personales", () => {
+    expect(RESPUESTA_AYUDA).toMatch(/Cuántos días dura un préstamo/);
+    expect(RESPUESTA_AYUDA).toMatch(/Tengo multas/);
+  });
+  test("cuando no entiende, sugiere ejemplos y la palabra ayuda", () => {
+    expect(RESPUESTA_DESCONOCIDA).toMatch(/"ayuda"/);
   });
 });

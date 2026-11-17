@@ -5,7 +5,8 @@
  */
 
 export class ErrorApi extends Error {
-  constructor(message: string, public readonly estado: number, public readonly motivos: string[] = []) {
+  /** campos: nombres de los campos del formulario que el servidor marcó con error. */
+  constructor(message: string, public readonly estado: number, public readonly motivos: string[] = [], public readonly campos: string[] = []) {
     super(message);
   }
 }
@@ -25,7 +26,7 @@ export async function api<T>(ruta: string, opciones: { metodo?: "GET" | "POST" |
   }
   const texto = await respuesta.text();
   const datos = texto ? JSON.parse(texto) : {};
-  if (!respuesta.ok) throw new ErrorApi(datos.error ?? `Error ${respuesta.status}`, respuesta.status, datos.motivos ?? []);
+  if (!respuesta.ok) throw new ErrorApi(datos.error ?? `Error ${respuesta.status}`, respuesta.status, datos.motivos ?? [], datos.campos ?? []);
   return datos as T;
 }
 
@@ -41,5 +42,33 @@ export const pesos = (monto: number) => new Intl.NumberFormat("es-MX", { style: 
 export const fecha = (valor: string) => new Date(valor.length === 10 ? `${valor}T12:00:00` : valor).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" });
 
 export type Rol = "Administrador" | "Bibliotecario" | "Alumno" | "Profesor" | "Colaborador";
-export type Sesion = { id: number; identificador: string; nombre: string; rol: Rol };
+export const TIPOS_CUENTA: Rol[] = ["Administrador", "Bibliotecario", "Alumno", "Profesor", "Colaborador"];
+
+/** Funciones que se pueden dar a un perfil (las mismas que servicios/comun/auth.ts). */
+export const PERMISOS = {
+  "buscar-libros": "Buscar libros",
+  "mis-prestamos": "Consultar mis préstamos",
+  "gestionar-libros": "Gestionar libros",
+  prestamos: "Prestar libros",
+  devoluciones: "Devolver libros",
+  multas: "Gestión de multas",
+  suspensiones: "Alumnos suspendidos",
+  cuentas: "Gestión de cuentas",
+  perfiles: "Gestión de perfiles",
+  compras: "Compra de libros",
+  chatbot: "Asistente (chatbot)",
+} as const;
+export type Permiso = keyof typeof PERMISOS;
+
+const PERFILES_BASE: Record<Rol, Permiso[]> = {
+  Administrador: ["buscar-libros", "gestionar-libros", "prestamos", "devoluciones", "multas", "suspensiones", "cuentas", "perfiles", "compras", "chatbot"],
+  Bibliotecario: ["buscar-libros", "gestionar-libros", "prestamos", "devoluciones", "multas", "suspensiones", "chatbot"],
+  Alumno: ["buscar-libros", "mis-prestamos", "chatbot"],
+  Profesor: ["buscar-libros", "mis-prestamos", "chatbot"],
+  Colaborador: ["buscar-libros", "mis-prestamos", "chatbot"],
+};
+
+export type Sesion = { id: number; identificador: string; nombre: string; rol: Rol; perfil?: string; permisos?: Permiso[] };
+export const permisosDe = (s: Sesion): Permiso[] => s.permisos ?? PERFILES_BASE[s.rol] ?? [];
+export const puede = (s: Sesion, p: Permiso) => permisosDe(s).includes(p);
 export const esPersonal = (rol: Rol) => rol === "Administrador" || rol === "Bibliotecario";
