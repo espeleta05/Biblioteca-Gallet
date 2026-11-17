@@ -340,6 +340,11 @@ CREATE TABLE BITACORA (
     fecha_hora    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Búsquedas sin importar acentos ni mayúsculas ("ingenieria" encuentra "Ingeniería").
+CREATE OR REPLACE FUNCTION sin_acentos(texto TEXT) RETURNS TEXT
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE
+  AS $$ SELECT translate(lower(texto), 'áéíóúüàèìòùäëïöâêîôû', 'aeiouuaeiouaeioaeiou') $$;
+
 -- Índices para las consultas frecuentes (RNF: respuesta ≤ 3 s) ------------
 CREATE INDEX ix_ejemplares_libro_estado ON EJEMPLARES (id_libro, estado);
 CREATE INDEX ix_prestamos_usuario_estado ON PRESTAMOS (id_credencial, estado);

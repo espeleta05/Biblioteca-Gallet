@@ -21,11 +21,11 @@ INSERT INTO CHATBOT_REGLAS (tema, pregunta_frecuente, palabras_clave, respuesta_
     ('Vigencias', '¿Cuántos días dura un préstamo?', 'cuantos dias dura duran vigencia plazo prestamo vence tiempo quedar quedarme hasta semana semanas habiles',
      'Alumnos y colaboradores: 5 días hábiles. Profesores: 10 días hábiles. Sábados y domingos no cuentan.'),
     ('Renovaciones', '¿Cuántas veces puedo renovar un libro?', 'renovar renovarlo renovacion renovaciones renuevo extender ampliar prorroga veces',
-     'Alumnos y colaboradores pueden renovar cada préstamo hasta 2 veces; profesores hasta 3. Un préstamo vencido ya no se renueva.'),
+     'Alumnos y colaboradores pueden renovar cada préstamo hasta 2 veces; profesores hasta 3. Un préstamo vencido ya no se renueva. La renovación se pide en el mostrador de la Biblioteca (no desde la web ni la app).'),
     ('Multas', '¿Cuánto es la multa por entregar tarde?', 'multa multas retraso retrase tarde atraso atrasado cobro cobran pagar costo dia',
      'La multa es de $10 pesos por cada día de retraso. Se paga en Tesorería y la biblioteca registra el pago.'),
-    ('Costos de reposición', '¿Cuánto pago si pierdo o daño un libro?', 'perdi perdio perdieron pierdo perdida pierde extravie extraviar daño dañe dañado rompi roto robo robaron reponer reposicion',
-     'Se cobra el valor presente del libro: el precio de su última compra en dólares por el tipo de cambio del día publicado por Banxico.'),
+    ('Costos de reposición', '¿Cuánto pago si pierdo o daño un libro?', 'perdi perdio perdieron pierdo pierda pierden perder perdido perdida pierde extravie extraviar extravio daño dañe dañado dañar rompi rompio roto rompe robo robaron reponer reposicion cobra cobran',
+     'Avísalo en el mostrador de la Biblioteca. Se cobra el valor presente del libro: el precio de su última compra en dólares por el tipo de cambio del día publicado por Banxico, y se paga en Tesorería.'),
     ('Préstamos', '¿Cuántos libros puedo llevar?', 'cuantos libros llevar llevarme maximo limite ejemplares pedir prestar prestan sacar',
      'Puedes tener hasta 2 ejemplares prestados a la vez, siempre que no debas multas ni tengas préstamos vencidos. Los libros de consulta interna o reservados no se prestan.');
 

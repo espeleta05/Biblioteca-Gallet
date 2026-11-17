@@ -9,7 +9,7 @@ export type IntencionPersonal = "mis_prestamos" | "mis_vencimientos" | "mis_mult
 export type ReglaConocimiento = { id: number; tema: string; palabrasClave: string; respuesta: string };
 export type Clasificacion =
   | { tipo: "personal"; intencion: IntencionPersonal }
-  | { tipo: "regla"; regla: ReglaConocimiento; puntaje: number }
+  | { tipo: "regla"; regla: ReglaConocimiento; puntaje: number; coincidencias: string[] }
   | { tipo: "ayuda" }
   | { tipo: "desconocida" };
 
@@ -38,10 +38,10 @@ export function clasificar(pregunta: string, reglas: ReglaConocimiento[]): Clasi
   const personal = PERSONALES.find((p) => p.patron.test(texto));
   if (personal) return { tipo: "personal", intencion: personal.intencion };
   const palabras = new Set(texto.split(" "));
-  let mejor: { regla: ReglaConocimiento; puntaje: number } | null = null;
+  let mejor: { regla: ReglaConocimiento; puntaje: number; coincidencias: string[] } | null = null;
   for (const regla of reglas) {
-    const puntaje = normalizar(regla.palabrasClave).split(" ").filter((clave) => clave.length > 2 && palabras.has(clave)).length;
-    if (puntaje > 0 && (!mejor || puntaje > mejor.puntaje)) mejor = { regla, puntaje };
+    const coincidencias = normalizar(regla.palabrasClave).split(" ").filter((clave) => clave.length > 2 && palabras.has(clave));
+    if (coincidencias.length > 0 && (!mejor || coincidencias.length > mejor.puntaje)) mejor = { regla, puntaje: coincidencias.length, coincidencias };
   }
   if (mejor) return { tipo: "regla", ...mejor };
   // Un saludo o una pregunta sobre el asistente solo cuando no pidió un tema concreto.
@@ -64,6 +64,18 @@ export const RESPUESTA_AYUDA = [
   "Soy el asistente de la biblioteca. Puedo responderte sobre vigencias, renovaciones, multas, costos de reposición y sobre tus préstamos. Por ejemplo:",
   ...EJEMPLOS.map((e) => `• ${e}`),
 ].join("\n");
+
+/** Palabras clave demasiado generales para decidir solas que la pregunta es sobre esa política. */
+const GENERALES = new Set(["dia", "dias", "tiempo", "veces", "libros", "costo", "cuantos", "pedir", "sacar", "hasta", "semana"]);
+
+/**
+ * ¿La política se puede responder tal cual, sin el modelo de lenguaje? (ADR 0003)
+ * Sí con 2 o más palabras clave, o con una sola que sea específica ("pierdo",
+ * "renovar", "multa"); no con una general como "día" ("¿qué día es hoy?").
+ */
+export function reglaSegura(c: Extract<Clasificacion, { tipo: "regla" }>): boolean {
+  return c.puntaje >= 2 || c.coincidencias.some((p) => !GENERALES.has(p));
+}
 
 export const RESPUESTA_DESCONOCIDA =
   `No entendí tu pregunta. Prueba con "${EJEMPLOS[0]}" o "${EJEMPLOS[5]}", o escribe "ayuda" para ver todo lo que puedo responder.`;

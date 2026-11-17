@@ -35,7 +35,9 @@ export const INFORMACION_SIGEB = [
   "SIGEB (Sistema Integral de Gestión Bibliotecaria) es el sistema de la Biblioteca de la Universidad Ducky.",
   "Objetivo: automatizar préstamos, devoluciones, renovaciones, multas, catálogo e inventarios, con las mismas reglas para todos y evidencia de cada operación (ISO 9001:2015).",
   "Funciones: gestión de usuarios, gestionar libros, buscar libros, prestar libros, devolver libros, gestión de multas, alumnos suspendidos y este asistente.",
-  "Alumnos, profesores y colaboradores buscan libros con su ubicación, consultan sus préstamos y multas en \"Mi cuenta\" y usan este asistente. Los préstamos, renovaciones y devoluciones se registran en el mostrador; las multas se pagan en Tesorería.",
+  "Alumnos, profesores y colaboradores buscan libros con su ubicación, consultan sus préstamos y multas en \"Mi cuenta\" y usan este asistente. \"Mi cuenta\" solo muestra datos: ahí no se hace ningún trámite.",
+  "Todos los trámites (préstamos, renovaciones, devoluciones y avisos de libros perdidos o dañados) se hacen en el mostrador de la Biblioteca; las multas y los costos de reposición se pagan en Tesorería.",
+  "Ni la web ni la app móvil permiten prestar, renovar, devolver ni pagar: solo sirven para buscar libros, consultar tus datos y usar este asistente.",
   "Plataformas: una aplicación web que usan tanto el personal de la Biblioteca como los lectores, y una app móvil para Android e iOS (búsqueda de libros y asistente). El asistente funciona las 24 horas.",
 ].join("\n");
 
@@ -47,6 +49,7 @@ export function instrucciones(reglas: ReglaConocimiento[]): string {
     "- Solo ayudas con la Biblioteca y con SIGEB. Si preguntan otra cosa, responde en una sola oración que solo ayudas con la Biblioteca y sugiere una pregunta que sí puedes contestar.",
     "- Los préstamos y multas de la persona están en \"Datos de quien pregunta\". Úsalos tal cual; nunca inventes títulos, fechas ni montos.",
     "- No registras préstamos, renovaciones, devoluciones ni pagos: eso se hace en el mostrador o en Tesorería.",
+    "- Para preguntas sobre reglas, usa el texto de la política que corresponda. No inventes procesos, opciones del sistema ni excepciones: si las políticas no lo dicen, sugiere preguntar en el mostrador.",
     "Políticas de la Biblioteca:",
     ...reglas.map((r) => `- ${r.tema}: ${r.respuesta}`),
     "Información de SIGEB:",
@@ -79,12 +82,55 @@ export function contextoPersona(d: DatosPersona): string {
   return lineas.join("\n");
 }
 
-/** ¿La pregunta busca un libro del catálogo? Solo entonces se ofrece buscar_libros. */
+/**
+ * ¿La pregunta busca un libro del catálogo? Solo entonces se ofrece buscar_libros.
+ * Decir "libro" no basta ("¿cuánto se cobra si un libro se pierde?" es una política):
+ * hace falta una intención de búsqueda.
+ */
 export function necesitaBuscarLibros(pregunta: string): boolean {
   const t = normalizar(pregunta);
   if (/\b(mi|mis|me lleve|tengo prestad[oa]s?|que libros tengo|tengo el libro|tengo los libros|tengo que (entregar|regresar|devolver))\b/.test(t)) return false;
-  return /\b(libro|libros|autor|autora|autores|tema|temas|ejemplar|ejemplares|novela|novelas|titulo|disponible|disponibles|busco|buscar|tienen|hay|donde esta|donde estan|ubicacion)\b/.test(t);
+  return /\b(hay|tienen|tiene la biblioteca|busco|buscar|buscando|donde esta|donde estan|donde encuentro|ubicacion|disponible|disponibles|autor|autora|autores|ejemplares de|novelas?|libros? (de|sobre|del))\b/.test(t);
 }
+
+/**
+ * Cuando el clasificador encuentra una política relacionada (aunque sea con una sola
+ * palabra clave), se le da al modelo para que responda con ella y no improvise.
+ */
+export function politicaRelacionada(regla: ReglaConocimiento): string {
+  return `Política que corresponde a esta pregunta (respóndela con este texto y agrega solo lo necesario): ${regla.tema}: ${regla.respuesta}`;
+}
+
+export type LibroEncontrado = { titulo: string; autores: string | null; tipoUso: string; disponibles: number; ubicaciones: string[]; proximaDevolucion: string | null };
+
+/**
+ * Respuesta de una búsqueda, redactada con los datos reales: Llama decide qué
+ * buscar y el sistema escribe el resultado, para que títulos, copias y
+ * ubicaciones nunca cambien.
+ */
+export function redactarBusqueda(texto: string, libros: LibroEncontrado[]): string {
+  if (!libros.length) return `No encontré libros con "${texto}". Prueba con otro título, autor o tema, o pregunta en el mostrador.`;
+  const lineas = libros.slice(0, 3).map((l) => {
+    const quien = l.autores ? ` (${l.autores})` : "";
+    const uso = l.tipoUso === "Préstamo externo" ? "" : ` Su tipo de uso es "${l.tipoUso}": no se presta fuera de la Biblioteca.`;
+    if (l.disponibles > 0) {
+      return `"${l.titulo}"${quien}: ${l.disponibles} ${l.disponibles === 1 ? "copia disponible" : "copias disponibles"} en ${l.ubicaciones.join("; ")}.${uso}`;
+    }
+    return `"${l.titulo}"${quien}: sin copias disponibles${l.proximaDevolucion ? `; la devolución más próxima es el ${l.proximaDevolucion}` : ""}.${uso}`;
+  });
+  // La búsqueda trae hasta 5; se muestran 3 para que la respuesta sea breve.
+  return (libros.length > 3 ? ["Encontré varios libros; estos son los primeros 3 (en Buscar libros puedes ver todos):", ...lineas] : lineas).join("\n");
+}
+
+/** Texto que el modelo escribió como llamada a una herramienta ({"name": …}); nunca se le muestra al usuario. */
+export function esLlamadaEnTexto(contenido: string): boolean {
+  const texto = contenido.trim().replace(/^```(?:json)?\s*|\s*```$/g, "");
+  if (!texto.startsWith("{")) return false;
+  try { return typeof (JSON.parse(texto) as { name?: unknown }).name === "string"; } catch { return /^\{\s*"name"\s*:/.test(texto); }
+}
+
+/** Se le pide al modelo cuando inventa una herramienta. */
+export const SIN_ESA_HERRAMIENTA = "Esa herramienta no existe. Responde con texto, en español, usando las políticas de la Biblioteca y los datos que ya tienes.";
 
 const NOMBRES = new Set<string>(HERRAMIENTAS.map((h) => h.function.name));
 
@@ -124,13 +170,23 @@ export async function ejecutarAgente(
   const mensajes: MensajeLlm[] = [...sistema.map((content): MensajeLlm => ({ role: "system", content })), { role: "user", content: pregunta }];
   const ofrecidas = opciones.conHerramientas ? HERRAMIENTAS : [];
   const usadas: string[] = [];
+  let corregido = false;
   for (let paso = 0; paso < (opciones.pasos ?? 3); paso += 1) {
     // Después de usar una herramienta ya no se ofrecen más: la siguiente vuelta es la respuesta.
-    const mensaje = await modelo(mensajes, usadas.length ? [] : ofrecidas);
+    const mensaje = await modelo(mensajes, usadas.length || corregido ? [] : ofrecidas);
     if (!mensaje) return null;
-    const llamadas = mensaje.tool_calls?.length ? mensaje.tool_calls : llamadasEnTexto(mensaje.content ?? "");
+    const contenido = mensaje.content ?? "";
+    const llamadas = mensaje.tool_calls?.length ? mensaje.tool_calls : llamadasEnTexto(contenido);
     if (!llamadas.length) {
-      const respuesta = (mensaje.content ?? "").trim();
+      // El modelo inventó una herramienta y la escribió como texto: se le pide una vez que
+      // responda con texto; si insiste, responde el clasificador local (null).
+      if (esLlamadaEnTexto(contenido)) {
+        if (corregido) return null;
+        corregido = true;
+        mensajes.push({ role: "assistant", content: contenido }, { role: "user", content: SIN_ESA_HERRAMIENTA });
+        continue;
+      }
+      const respuesta = contenido.trim();
       return respuesta ? { respuesta: respuesta.slice(0, 1200), herramientas: usadas } : null;
     }
     mensajes.push({ role: "assistant", content: mensaje.content ?? "", tool_calls: llamadas });
@@ -140,6 +196,10 @@ export async function ejecutarAgente(
       try { resultado = ejecutar ? await ejecutar(argumentosDe(llamada)) : { error: `La herramienta ${llamada.function.name} no existe.` }; }
       catch (error) { resultado = { error: `No se pudo consultar: ${(error as Error).message}` }; }
       usadas.push(llamada.function.name);
+      // La herramienta ya trae la respuesta redactada con los datos reales (títulos, copias y
+      // ubicaciones): se entrega tal cual, sin otra vuelta del modelo que pudiera cambiarlos.
+      const directa = (resultado as { respuestaDirecta?: unknown } | null)?.respuestaDirecta;
+      if (typeof directa === "string" && directa) return { respuesta: directa, herramientas: usadas };
       mensajes.push({ role: "tool", tool_name: llamada.function.name, content: JSON.stringify(resultado) });
     }
   }

@@ -3,7 +3,7 @@
  * el ciclo con la herramienta de búsqueda, cuándo se ofrece, la privacidad (el
  * contexto solo lleva los datos de quien pregunta) y el respaldo sin modelo.
  */
-import { contextoPersona, ejecutarAgente, HERRAMIENTAS, instrucciones, llamadasEnTexto, necesitaBuscarLibros, type Herramientas, type Modelo } from "../../comun/dominio/agente";
+import { contextoPersona, ejecutarAgente, esLlamadaEnTexto, HERRAMIENTAS, instrucciones, llamadasEnTexto, necesitaBuscarLibros, politicaRelacionada, redactarBusqueda, SIN_ESA_HERRAMIENTA, type Herramientas, type LibroEncontrado, type Modelo } from "../../comun/dominio/agente";
 import type { HerramientaLlm, MensajeLlm } from "../../comun/integraciones";
 
 /** Modelo simulado: devuelve en orden las respuestas preparadas y guarda lo que recibió. */
@@ -67,10 +67,50 @@ describe("agente del chatbot (Llama)", () => {
     expect(falla.recibidos[1].mensajes.at(-1)!.content).toMatch(/No se pudo consultar: base de datos no disponible/);
   });
 
+  test("si el modelo inventa una herramienta y la escribe como texto, nunca se muestra: se le pide responder con texto", async () => {
+    const { modelo, recibidos } = modeloSimulado([
+      { role: "assistant", content: '{"name":"costos_de_reposicion","parameters":{}}' },
+      { role: "assistant", content: "Se cobra el precio de la última compra en dólares por el tipo de cambio de Banxico." },
+    ]);
+    const r = await ejecutarAgente("cuanto se cobra si un libro se pierda", ["fijo"], modelo, busquedaSimulada().herramientas, { conHerramientas: true });
+    expect(r).toEqual({ respuesta: "Se cobra el precio de la última compra en dólares por el tipo de cambio de Banxico.", herramientas: [] });
+    expect(recibidos[1].mensajes.at(-1)).toEqual({ role: "user", content: SIN_ESA_HERRAMIENTA });
+    expect(recibidos[1].herramientas).toEqual([]);
+  });
+
+  test("si insiste en escribir una herramienta inventada → null (responde el clasificador), nunca el JSON", async () => {
+    const json = { role: "assistant" as const, content: '{"name":"costos_de_reposicion","parameters":{}}' };
+    expect(await ejecutarAgente("x", ["fijo"], modeloSimulado([json, json, json]).modelo, busquedaSimulada().herramientas, { conHerramientas: false })).toBeNull();
+    expect(esLlamadaEnTexto('{"name": "x"')).toBe(true);
+    expect(esLlamadaEnTexto("La multa es de $10.")).toBe(false);
+  });
+
   test("sin modelo (Ollama apagado) o sin respuesta final → null y el servicio usa el clasificador local", async () => {
     expect(await ejecutarAgente("hola", ["fijo"], modeloSimulado([null]).modelo, busquedaSimulada().herramientas, { conHerramientas: false })).toBeNull();
     const enCiclo = modeloSimulado(Array.from({ length: 5 }, () => llamadaBusqueda({ texto: "x" })));
     expect(await ejecutarAgente("hola", ["fijo"], enCiclo.modelo, busquedaSimulada().herramientas, { conHerramientas: true, pasos: 2 })).toBeNull();
+  });
+});
+
+describe("respuesta de una búsqueda (la redacta el sistema, no el modelo)", () => {
+  test("si la herramienta trae respuestaDirecta, se entrega tal cual y sin otra vuelta del modelo", async () => {
+    const { modelo, recibidos } = modeloSimulado([llamadaBusqueda({ texto: "Cervantes" }), { role: "assistant", content: "¿Cuál deseas prestar?" }]);
+    const herramientas: Herramientas = { buscar_libros: async () => ({ respuestaDirecta: "\"Don Quijote de la Mancha\": 2 copias disponibles." }) };
+    const r = await ejecutarAgente("¿Hay algo de Cervantes?", ["fijo"], modelo, herramientas, { conHerramientas: true });
+    expect(r).toEqual({ respuesta: "\"Don Quijote de la Mancha\": 2 copias disponibles.", herramientas: ["buscar_libros"] });
+    expect(recibidos).toHaveLength(1);
+  });
+
+  const quijote: LibroEncontrado = { titulo: "Don Quijote de la Mancha", autores: "Miguel de Cervantes", tipoUso: "Préstamo externo", disponibles: 2, ubicaciones: ["Piso 1, área Literatura, pasillo L, estante 08"], proximaDevolucion: null };
+  test.each<[string, LibroEncontrado[], string | RegExp]>([
+    ["con copias", [quijote], "\"Don Quijote de la Mancha\" (Miguel de Cervantes): 2 copias disponibles en Piso 1, área Literatura, pasillo L, estante 08."],
+    ["sin copias, con la devolución más próxima", [{ ...quijote, disponibles: 0, ubicaciones: [], proximaDevolucion: "2026-11-18" }],
+      "\"Don Quijote de la Mancha\" (Miguel de Cervantes): sin copias disponibles; la devolución más próxima es el 2026-11-18."],
+    ["de consulta interna", [{ ...quijote, disponibles: 1, tipoUso: "Consulta interna" }], /1 copia disponible en .* Su tipo de uso es "Consulta interna": no se presta fuera de la Biblioteca\./],
+    ["sin resultados", [], "No encontré libros con \"Cervantes\". Prueba con otro título, autor o tema, o pregunta en el mostrador."],
+  ])("%s", (_caso, libros, esperado) => {
+    const texto = redactarBusqueda("Cervantes", libros);
+    if (typeof esperado === "string") expect(texto).toBe(esperado); else expect(texto).toMatch(esperado);
   });
 });
 
@@ -83,6 +123,10 @@ describe("cuándo se ofrece la búsqueda de libros", () => {
     ["¿Qué libros tengo prestados?", false],
     ["¿Para qué sirve SIGEB?", false],
     ["¿Cuál es la capital de Francia?", false],
+    ["cuanto se cobra si un libro se pierda", false],
+    ["¿Qué pasa si daño un libro?", false],
+    ["¿Hay algo de Cervantes?", true],
+    ["Busco un libro sobre algoritmos", true],
   ])("%s → %s", (pregunta, esperado) => expect(necesitaBuscarLibros(pregunta)).toBe(esperado));
 });
 
@@ -101,6 +145,15 @@ describe("instrucciones y contexto", () => {
     expect(texto).toContain("Alumno ALU005 (Alumno). Hoy es 2026-11-17.");
     expect(texto).toContain('"Effective Java": venció el 2026-11-14; ya no hay fecha límite nueva');
     expect(texto).toContain("retraso $30.00");
+  });
+
+  test("la web y la app no hacen trámites (evita que el modelo diga que se puede renovar desde la app)", () => {
+    expect(instrucciones([])).toMatch(/Ni la web ni la app móvil permiten prestar, renovar, devolver ni pagar/);
+  });
+
+  test("la política relacionada se le da al modelo con su texto exacto", () => {
+    expect(politicaRelacionada({ id: 4, tema: "Costos de reposición", palabrasClave: "", respuesta: "Precio en USD × tipo de cambio." }))
+      .toMatch(/Costos de reposición: Precio en USD × tipo de cambio\.$/);
   });
 
   test("el personal no tiene préstamos propios", () => {

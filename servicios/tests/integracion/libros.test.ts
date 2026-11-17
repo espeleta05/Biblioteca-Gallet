@@ -152,6 +152,8 @@ describe("Buscar libros (todos los roles)", () => {
     const ej = r.body.find((l: { titulo: string }) => l.titulo === "Effective Java");
     expect(ej.ubicaciones[0]).toMatchObject({ piso: "Piso 2", disponibles: 3, total: 3 });
     expect((await buscar("criterio=clave&texto=LIB-0001")).body[0].titulo).toBe("Effective Java");
+    // Sin acentos ni mayúsculas: "INGENIERIA" encuentra "Ingeniería de software".
+    expect((await buscar("criterio=tema&texto=INGENIERIA")).body.map((l: { titulo: string }) => l.titulo)).toContain("Clean Code");
   });
 });
 

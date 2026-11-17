@@ -12,8 +12,8 @@ import type { Sesion } from "../../comun/auth";
 import { formatoPesos } from "../../comun/avisos";
 import { PUERTOS } from "../../comun/config";
 import { consultar, obtenerPool } from "../../comun/db";
-import { contextoPersona, ejecutarAgente, instrucciones, necesitaBuscarLibros, type DatosPersona, type Herramientas } from "../../comun/dominio/agente";
-import { clasificar, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type IntencionPersonal, type ReglaConocimiento } from "../../comun/dominio/chatbot";
+import { contextoPersona, ejecutarAgente, instrucciones, necesitaBuscarLibros, politicaRelacionada, redactarBusqueda, type DatosPersona, type Herramientas, type LibroEncontrado } from "../../comun/dominio/agente";
+import { clasificar, reglaSegura, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type IntencionPersonal, type ReglaConocimiento } from "../../comun/dominio/chatbot";
 import { hoyEnBiblioteca } from "../../comun/dominio/fechas";
 import { conversarConOllama, detectarIntencionDialogflow, precalentarOllama } from "../../comun/integraciones";
 import { iniciarServicio, UsuarioActual } from "../../comun/nest";
@@ -80,27 +80,28 @@ export class ServicioChatbot implements OnApplicationBootstrap {
       buscar_libros: async ({ texto }) => {
         const q = typeof texto === "string" ? texto.trim() : "";
         if (q.length < 3) return { error: "Escribe por lo menos 3 caracteres del título, autor o tema." };
-        const libros = await consultar(`
+        const libros = await consultar<LibroEncontrado>(`
           SELECT l.titulo, l.tipo_uso AS "tipoUso",
                  (SELECT string_agg(a.nombre_autor, ', ') FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro) AS autores,
                  COUNT(e.id_ejemplar) FILTER (WHERE e.estado = 'Disponible')::int AS disponibles,
-                 COALESCE(json_agg(DISTINCT COALESCE(e.piso || ', área ' || e.area || ', pasillo ' || e.pasillo || ', estante ' || e.estante, 'sin ubicación registrada: preguntar en el mostrador'))
+                 COALESCE(json_agg(DISTINCT COALESCE(e.piso || ', área ' || e.area || ', pasillo ' || e.pasillo || ', estante ' || e.estante, 'un lugar sin ubicación registrada (pregunta en el mostrador)'))
                    FILTER (WHERE e.estado = 'Disponible'), '[]') AS ubicaciones,
                  (SELECT MIN(p.fecha_vencimiento)::text FROM PRESTAMOS p JOIN EJEMPLARES x ON x.id_ejemplar = p.id_ejemplar WHERE x.id_libro = l.id_libro AND p.estado = 'Activo') AS "proximaDevolucion"
           FROM LIBROS l JOIN TEMAS t ON t.id_tema = l.id_tema JOIN EJEMPLARES e ON e.id_libro = l.id_libro AND e.estado <> 'Dado de baja'
-          WHERE l.titulo ILIKE '%' || $1 || '%' OR t.nombre_tema ILIKE '%' || $1 || '%'
-             OR EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND a.nombre_autor ILIKE '%' || $1 || '%')
+          WHERE sin_acentos(l.titulo) LIKE '%' || sin_acentos($1) || '%' OR sin_acentos(t.nombre_tema) LIKE '%' || sin_acentos($1) || '%'
+             OR EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND sin_acentos(a.nombre_autor) LIKE '%' || sin_acentos($1) || '%')
           GROUP BY l.id_libro ORDER BY disponibles DESC, l.titulo LIMIT 5`, [q]);
-        return libros.length ? { libros } : { libros: [], aviso: "No se encontraron libros con ese texto." };
+        return { respuestaDirecta: redactarBusqueda(q, libros) };
       },
     };
   }
 
   /** Pregunta abierta → agente con Llama; null si Ollama no está o no respondió a tiempo. */
-  private async preguntarAlAgente(texto: string, sesion: Sesion, reglas: ReglaConocimiento[]) {
+  private async preguntarAlAgente(texto: string, sesion: Sesion, reglas: ReglaConocimiento[], relacionada?: ReglaConocimiento) {
     try {
-      // Instrucciones fijas primero (Ollama reutiliza ese inicio entre preguntas) y luego los datos de la persona.
-      const sistema = [instrucciones(reglas), contextoPersona(await this.datosPersona(sesion))];
+      // Instrucciones fijas primero (Ollama reutiliza ese inicio entre preguntas), luego los datos de
+      // la persona y, si el clasificador la encontró, la política que corresponde a la pregunta.
+      const sistema = [instrucciones(reglas), contextoPersona(await this.datosPersona(sesion)), ...(relacionada ? [politicaRelacionada(relacionada)] : [])];
       return await ejecutarAgente(texto, sistema, conversarConOllama, this.herramientas(), { conHerramientas: necesitaBuscarLibros(texto) });
     } catch (error) {
       console.warn("[chatbot] Llama (Ollama) no respondió; se usa el clasificador local:", (error as Error).message);
@@ -128,8 +129,10 @@ export class ServicioChatbot implements OnApplicationBootstrap {
       const clasificacion = clasificar(texto, reglas);
       // Lo que el clasificador reconoce con seguridad se responde al instante (RNF de 3 s);
       // las preguntas abiertas o ambiguas van al agente con Llama.
-      const segura = clasificacion.tipo === "personal" || clasificacion.tipo === "ayuda" || (clasificacion.tipo === "regla" && clasificacion.puntaje >= 2);
-      const agente = segura ? null : await this.preguntarAlAgente(texto, sesion, reglas);
+      // Las políticas salen con su texto exacto; solo una búsqueda de libros pasa al agente aunque mencione una política.
+      const segura = clasificacion.tipo === "personal" || clasificacion.tipo === "ayuda"
+        || (clasificacion.tipo === "regla" && reglaSegura(clasificacion) && !necesitaBuscarLibros(texto));
+      const agente = segura ? null : await this.preguntarAlAgente(texto, sesion, reglas, clasificacion.tipo === "regla" ? clasificacion.regla : undefined);
       if (agente) {
         motor = "Llama 3.2 (Ollama)";
         intencion = (agente.herramientas.length ? `agente:${[...new Set(agente.herramientas)].join("+")}` : "agente").slice(0, 40);

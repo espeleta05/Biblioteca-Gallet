@@ -29,6 +29,23 @@ Agregar un **agente con Llama 3.2 (3B)**, que corre en **Ollama** dentro de Dock
   - Variables: `URL_OLLAMA`, `MODELO_OLLAMA` y `OLLAMA_TIEMPO_LIMITE_MS`.
 - **Gateway:** `/api/chatbot` tiene 60 s de espera (las demás rutas, 5 s).
 
+### Ajustes tras las pruebas con usuarios (2026-11-17)
+
+Un modelo de 3B a veces inventa. En las pruebas, por ejemplo:
+
+- escribió como texto una herramienta que no existe (`{"name":"costos_de_reposicion"…}`);
+- dijo que se puede renovar desde la app;
+- omitió el costo de un libro perdido;
+- ante una búsqueda, contestó "¿Cuál deseas prestar?".
+
+Por eso, **los datos exactos nunca los redacta el modelo**:
+
+- **Políticas:** si la pregunta coincide con una política por una palabra clave específica ("pierdo", "renovar", "multa"; no "día"), se responde con el texto exacto de `CHATBOT_REGLAS`. Esos textos dicen dónde se hace cada trámite.
+- **Préstamos y multas propios:** respuesta determinista del clasificador.
+- **Búsqueda de libros:** Llama solo decide qué buscar. La respuesta la escribe el sistema con los títulos, copias, ubicaciones y devoluciones reales (`redactarBusqueda`), sin otra vuelta del modelo.
+- **Herramienta inventada:** nunca se muestra. Se le pide una vez al modelo que responda con texto y, si insiste, contesta el clasificador.
+- **Lo que hace Llama:** información de SIGEB, la fecha, preguntas que no son de la Biblioteca y preguntas abiertas que no coinciden con una política.
+
 ## Alternativas consideradas
 
 | Alternativa | Por qué no |
