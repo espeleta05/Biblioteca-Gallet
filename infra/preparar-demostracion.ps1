@@ -8,6 +8,8 @@ Set-Location (Join-Path $PSScriptRoot '..')
 Write-Host '1. Levantando el sistema (Docker Compose)...'
 docker compose --profile pruebas up -d
 if ($LASTEXITCODE -ne 0) { throw 'No se pudo levantar el sistema. ¿Está abierto Docker Desktop?' }
+# NGINX toma las direcciones de los servicios al arrancar; si alguno se recreó, hay que reiniciarlo.
+docker compose restart gateway
 
 Write-Host '2. Reiniciando la base de datos y cargando la escena de demostración...'
 docker compose cp db/escena-demostracion.sql db:/tmp/escena-demostracion.sql

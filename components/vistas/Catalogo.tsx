@@ -107,7 +107,7 @@ export function Catalogo({ sesion }: { sesion: Sesion }) {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Gestionar libros</h2><p>Fichas bibliográficas, estado de los ejemplares e inventario.</p></div>
+        <div><h2>Gestionar libros</h2></div>
         <div className="acciones"><button className="boton" onClick={() => setModal("compra")}>Solicitar compra</button><button className="boton primario" onClick={() => setModal("nueva")}>Nueva ficha</button></div>
       </div>
       <div className="pestanas" role="tablist">

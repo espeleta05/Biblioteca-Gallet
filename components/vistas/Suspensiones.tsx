@@ -31,7 +31,7 @@ export function Suspensiones() {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Alumnos suspendidos</h2><p>Personas a las que ya no se les presta por exceso de multas, robo o mal uso de los libros.</p></div>
+        <div><h2>Alumnos suspendidos</h2></div>
         <button className="boton primario" onClick={() => setNueva(true)}>Registrar suspensión</button>
       </div>
       <Aviso mensaje={mensaje ?? lista.error} alCerrar={() => setMensaje(null)} />

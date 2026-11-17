@@ -53,8 +53,8 @@ export function Multas({ sesion }: { sesion: Sesion }) {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Gestión de multas</h2><p>Multa por retraso: $10 por día (Regla 3). Reposición: precio USD × tipo de cambio Banxico (Regla 4).</p></div>
-        {tipoCambio.datos && <p><Etiqueta color="azul">Tipo de cambio: {tipoCambio.datos.valor.toFixed(4)} MXN/USD · {fecha(tipoCambio.datos.fecha)}</Etiqueta>{tipoCambio.datos.aviso && <small> {tipoCambio.datos.aviso}</small>}</p>}
+        <div><h2>Gestión de multas</h2></div>
+        {tipoCambio.datos && <p><Etiqueta color="azul">Tipo de cambio: {tipoCambio.datos.valor.toFixed(4)} MXN/USD · {fecha(tipoCambio.datos.fecha)}</Etiqueta></p>}
       </div>
       <Aviso mensaje={mensaje} alCerrar={() => setMensaje(null)} />
       <div className="pestanas" role="tablist">

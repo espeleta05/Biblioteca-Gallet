@@ -77,7 +77,7 @@ export function Prestamos() {
 
   return (
     <>
-      <div className="encabezado"><div><h2>Prestar y devolver libros</h2><p>Las Reglas 1, 2, 5 y 6 se validan automáticamente.</p></div></div>
+      <div className="encabezado"><div><h2>Prestar y devolver libros</h2></div></div>
       <Aviso mensaje={mensaje} alCerrar={() => setMensaje(null)} />
       <section className="panel" aria-labelledby="titulo-prestamo">
         <h2 id="titulo-prestamo">Registrar préstamo</h2>

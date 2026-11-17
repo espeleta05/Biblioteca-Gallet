@@ -15,7 +15,7 @@ export function Busqueda() {
 
   return (
     <>
-      <div className="encabezado"><div><h2>Buscar libros</h2><p>Consulta la existencia y la ubicación de los libros de la biblioteca.</p></div></div>
+      <div className="encabezado"><div><h2>Buscar libros</h2></div></div>
       <form className="panel filtros" role="search" onSubmit={(e) => { e.preventDefault(); setEnviado(filtro); }}>
         <label className="campo"><span>Título, autor, ISBN o tema</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
         <label className="campo"><span>Autor</span><input value={filtro.autor} onChange={(e) => setFiltro({ ...filtro, autor: e.target.value })} /></label>

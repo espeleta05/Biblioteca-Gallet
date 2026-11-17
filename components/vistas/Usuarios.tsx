@@ -37,7 +37,7 @@ export function Usuarios({ sesion }: { sesion: Sesion }) {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Gestión de usuarios</h2><p>Alumnos, profesores y colaboradores provienen de la base de datos escolar; aquí se da de alta al personal de la biblioteca.</p></div>
+        <div><h2>Gestión de usuarios</h2></div>
         <div className="acciones"><button className="boton" onClick={() => void sincronizar()}>Verificar con base escolar</button><button className="boton primario" onClick={() => setAlta(true)}>Alta de personal</button></div>
       </div>
       <Aviso mensaje={mensaje ?? usuarios.error} alCerrar={() => setMensaje(null)} />

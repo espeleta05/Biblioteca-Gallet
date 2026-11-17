@@ -23,7 +23,7 @@ export function Inicio({ sesion, ir }: { sesion: Sesion; ir: (v: Vista) => void 
   const r = resumen.datos;
   return (
     <>
-      <div className="encabezado"><div><h2>Hola, {sesion.nombre.split(" ")[0]}</h2><p>Resumen de la biblioteca al momento.</p></div></div>
+      <div className="encabezado"><div><h2>Hola, {sesion.nombre.split(" ")[0]}</h2></div></div>
       <Aviso mensaje={resumen.error} />
       <section className="tarjetas" aria-label="Indicadores">
         <div className="tarjeta"><span>Ejemplares disponibles</span><strong>{r ? `${r.disponibles} / ${r.libros}` : "…"}</strong></div>

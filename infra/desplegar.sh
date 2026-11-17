@@ -58,6 +58,9 @@ fi
 
 echo "3. Construir y levantar contenedores"
 if [ "$MODO" = pruebas ]; then docker compose --profile pruebas up -d --build; else docker compose up -d --build; fi
+# NGINX resuelve las direcciones de los servicios al arrancar: si un contenedor se
+# recreó con otra dirección, el gateway respondería 503 hasta reiniciarse.
+docker compose restart gateway
 
 echo "4. Comprobación a través del gateway"
 INTENTOS=0
