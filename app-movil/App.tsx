@@ -7,7 +7,7 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useRef, useState, type ComponentRef } from "react";
 import { ActivityIndicator, FlatList, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Switch, Text, TextInput, View } from "react-native";
-import { buscarLibros, cerrarSesion, ErrorApi, iniciarSesion, preguntarChatbot, sesionActual, type Libro, type Sesion } from "./src/api";
+import { buscarLibros, cerrarSesion, ErrorApi, fechaCorta, iniciarSesion, preguntarChatbot, sesionActual, textoUbicacion, type Libro, type Sesion } from "./src/api";
 
 const C = { tinta: "#13202f", tenue: "#4a5668", azul: "#1a56b8", fondo: "#f3f6fa", linea: "#c9d1dc", verde: "#116343", rojo: "#a3221a", blanco: "#ffffff" };
 
@@ -67,12 +67,13 @@ function BuscarLibros() {
       {cargando ? <ActivityIndicator accessibilityLabel="Buscando" color={C.azul} /> : (
         <FlatList data={libros ?? []} keyExtractor={(l) => String(l.id)} ListEmptyComponent={<Text style={estilos.tenue}>No se encontraron libros.</Text>}
           renderItem={({ item }) => (
-            <View style={estilos.tarjeta} accessible accessibilityLabel={`${item.titulo}, de ${item.autores}. ${item.disponibles} de ${item.existencia} disponibles. ${item.ubicaciones.map((u) => `${u.piso}, ${u.area}, pasillo ${u.pasillo}, estante ${u.estante}`).join("; ")}`}>
+            <View style={estilos.tarjeta} accessible accessibilityLabel={`${item.titulo}, de ${item.autores}. ${item.disponibles ? `${item.disponibles} de ${item.existencia} disponibles` : "Sin copias disponibles"}. ${item.ubicaciones.map(textoUbicacion).join("; ")}`}>
               <Text style={estilos.subtitulo}>{item.titulo}</Text>
-              <Text style={estilos.tenue}>{item.autores} · {item.tema}</Text>
-              <Text style={[estilos.texto, { color: item.disponibles ? C.verde : C.rojo, fontWeight: "700" }]}>{item.disponibles ? `${item.disponibles} de ${item.existencia} disponibles` : "Sin ejemplares disponibles"}</Text>
+              <Text style={estilos.tenue}>{item.autores} · {item.editorial ?? item.tema}</Text>
+              <Text style={[estilos.texto, { color: item.disponibles ? C.verde : C.rojo, fontWeight: "700" }]}>{item.disponibles ? `${item.disponibles} de ${item.existencia} disponibles` : "Sin copias disponibles"}</Text>
+              {!item.disponibles && item.proximaDevolucion && <Text style={estilos.tenue}>Devolución más próxima: {fechaCorta(item.proximaDevolucion)}</Text>}
               {item.tipoUso !== "Préstamo externo" && <Text style={estilos.tenue}>{item.tipoUso}: no se presta fuera de la biblioteca</Text>}
-              {item.ubicaciones.map((u) => <Text key={`${u.piso}${u.pasillo}${u.estante}`} style={estilos.texto}>📍 {u.piso} · {u.area} · pasillo {u.pasillo} · estante {u.estante}</Text>)}
+              {item.ubicaciones.map((u, i) => <Text key={i} style={estilos.texto}>📍 {textoUbicacion(u)}</Text>)}
             </View>
           )} />
       )}

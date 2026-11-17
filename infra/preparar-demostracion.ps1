@@ -13,7 +13,8 @@ docker compose restart gateway
 
 Write-Host '2. Reiniciando la base de datos y cargando la escena de demostración...'
 docker compose cp db/escena-demostracion.sql db:/tmp/escena-demostracion.sql
-docker compose exec -T db psql -U sigeb -d sigeb -q -v ON_ERROR_STOP=1 -o /dev/null `
+# PGOPTIONS oculta los avisos (NOTICE) de "la tabla no existe" al recrear el esquema.
+docker compose exec -T -e PGOPTIONS='-c client_min_messages=warning' db psql -U sigeb -d sigeb -q -v ON_ERROR_STOP=1 -o /dev/null `
   -f /docker-entrypoint-initdb.d/01-esquema.sql `
   -f /docker-entrypoint-initdb.d/02-datos-base.sql `
   -f /docker-entrypoint-initdb.d/03-datos-prueba.sql `

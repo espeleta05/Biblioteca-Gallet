@@ -7,10 +7,10 @@ import "reflect-metadata";
 import { Module } from "@nestjs/common";
 import { PUERTOS } from "../../comun/config";
 import { iniciarServicio } from "../../comun/nest";
-import { ControladorAuth, ControladorUsuarios } from "./controlador";
+import { ControladorAuth, ControladorPerfiles, ControladorUsuarios } from "./controlador";
 import { ServicioUsuarios } from "./servicio";
 
-@Module({ controllers: [ControladorAuth, ControladorUsuarios], providers: [ServicioUsuarios] })
+@Module({ controllers: [ControladorAuth, ControladorUsuarios, ControladorPerfiles], providers: [ServicioUsuarios] })
 export class ModuloUsuarios {}
 
 if (require.main === module) void iniciarServicio(ModuloUsuarios, "usuarios", PUERTOS.usuarios);

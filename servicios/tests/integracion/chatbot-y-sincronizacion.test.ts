@@ -80,5 +80,5 @@ describe("Ver la base de datos de la escuela y verificar usuarios", () => {
     expect(baja.status).toBe(403);
     expect(baja.body.error).toMatch(/base de datos escolar/);
     expect((await request(usuarios.getHttpServer()).post("/api/auth/sesion").send({ identificador: "ALU101", contrasena: "1234" })).status).toBe(200);
-  });
+  }, 30_000); // Proceso por lotes: 126 cuentas en una transacción.
 });

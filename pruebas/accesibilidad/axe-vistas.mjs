@@ -36,7 +36,9 @@ async function iniciarSesion(pagina, usuario) {
 }
 
 async function irA(pagina, vista) {
-  await pagina.getByRole("navigation", { name: "Menú principal" }).getByRole("button", { name: vista }).click();
+  const menu = pagina.getByRole("navigation", { name: "Menú principal" });
+  if (!(await menu.isVisible())) await pagina.getByRole("button", { name: "Menú" }).click(); // celular
+  await menu.getByRole("button", { name: vista }).click();
   await pagina.waitForLoadState("networkidle");
 }
 
@@ -69,13 +71,35 @@ try {
   await abrirYAuditar(pagina, "Registrar suspensión", "Diálogo: registrar suspensión");
   await irA(pagina, "Gestionar libros");
   await auditar(pagina, "Gestionar libros");
-  await abrirYAuditar(pagina, "Nueva ficha", "Diálogo: nueva ficha bibliográfica");
+  await abrirYAuditar(pagina, "Alta de libros", "Diálogo: alta de libros");
+  await abrirYAuditar(pagina, "Baja de libros", "Diálogo: baja de libros");
   await abrirYAuditar(pagina, "Abrir ficha de", "Diálogo: ficha y ejemplares");
+  await pagina.getByRole("tab", { name: "Listado para inventario" }).click();
+  await pagina.getByRole("combobox", { name: "Tema" }).selectOption("Programación");
+  await pagina.getByRole("button", { name: "Generar listado" }).click();
+  await pagina.getByRole("region", { name: "Listado de ejemplares" }).waitFor();
+  await auditar(pagina, "Listado para inventario");
+  await pagina.getByRole("tab", { name: "Compra de libros" }).click();
+  await pagina.getByRole("region", { name: "Órdenes de compra" }).waitFor();
+  await auditar(pagina, "Compra de libros");
+  await abrirYAuditar(pagina, /^Compra de libros$/, "Diálogo: orden de compra");
   await irA(pagina, "Buscar libros");
+  await pagina.getByLabel(/Texto a buscar/).fill("java");
+  await pagina.getByRole("button", { name: "Buscar", exact: true }).click();
+  await pagina.getByRole("region", { name: "Resultados de la búsqueda" }).waitFor();
   await auditar(pagina, "Buscar libros");
   await irA(pagina, "Gestión de usuarios");
+  await pagina.getByRole("combobox", { name: "Estatus" }).selectOption("Inactiva");
+  await pagina.getByRole("button", { name: "Consultar cuentas" }).click();
+  await pagina.getByRole("region", { name: "Cuentas" }).waitFor();
   await auditar(pagina, "Gestión de usuarios");
-  await abrirYAuditar(pagina, "Alta de personal", "Diálogo: alta de personal");
+  await abrirYAuditar(pagina, "Alta de cuentas", "Diálogo: alta de cuentas");
+  await abrirYAuditar(pagina, "Baja de cuentas", "Diálogo: baja de cuentas");
+  await irA(pagina, "Gestión de perfiles");
+  await auditar(pagina, "Gestión de perfiles");
+  await abrirYAuditar(pagina, "Nuevo perfil", "Diálogo: nuevo perfil");
+  await irA(pagina, "Mi cuenta");
+  await auditar(pagina, "Mi cuenta (administrador)");
 
   // Mismas vistas con alto contraste y letra al 175 %.
   await pagina.getByRole("button", { name: "Alto contraste" }).click();
@@ -88,12 +112,15 @@ try {
 
   // Alumno en pantalla de celular: búsqueda y chatbot.
   await pagina.setViewportSize({ width: 390, height: 844 });
-  await iniciarSesion(pagina, "ALU001");
+  await iniciarSesion(pagina, "ALU005");
   await auditar(pagina, "Buscar libros (alumno, 390 px)");
+  await irA(pagina, "Mi cuenta");
+  await pagina.getByRole("region", { name: "Mis préstamos" }).waitFor();
+  await auditar(pagina, "Mi cuenta (alumno, 390 px)");
   await pagina.getByRole("button", { name: /^Asistente/ }).click();
   await pagina.getByLabel("Escribe tu pregunta").fill("¿Tengo multas?");
   await pagina.getByRole("button", { name: "Enviar" }).click();
-  await pagina.getByText(/multas pendientes|No tienes multas/).waitFor();
+  await pagina.locator("#chatbot").getByText(/multas pendientes|No tienes multas/).last().waitFor();
   await auditar(pagina, "Chatbot (alumno, 390 px)");
 } finally {
   await navegador.close();

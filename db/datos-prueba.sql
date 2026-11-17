@@ -80,3 +80,16 @@ WHERE l.titulo LIKE 'Libro de demostración %';
 INSERT INTO EJEMPLARES (id_libro, clave_ejemplar, piso, area, pasillo, estante)
 SELECT l.id_libro, l.isbn || '-001', 'Piso ' || (1 + l.id_libro % 3), 'General', 'D', LPAD((l.id_libro % 20)::text, 2, '0')
 FROM LIBROS l WHERE l.titulo LIKE 'Libro de demostración %';
+
+-- Ubicaciones que existen en la Biblioteca (las de los ejemplares y algunas libres).
+INSERT INTO UBICACIONES (piso, area, pasillo, estante)
+SELECT DISTINCT piso, area, pasillo, estante FROM EJEMPLARES WHERE piso IS NOT NULL
+UNION SELECT 'Piso 1', 'Literatura', 'L', LPAD(i::text, 2, '0') FROM generate_series(1, 12) AS i
+UNION SELECT 'Piso 2', 'Tecnología', 'A', LPAD(i::text, 2, '0') FROM generate_series(1, 20) AS i
+UNION SELECT 'Piso 2', 'Tecnología', 'B', LPAD(i::text, 2, '0') FROM generate_series(1, 10) AS i
+UNION SELECT 'Piso 3', 'General', 'D', LPAD(i::text, 2, '0') FROM generate_series(0, 20) AS i
+ON CONFLICT DO NOTHING;
+
+-- Presupuesto de compras del mes en curso (HU5-SP1).
+INSERT INTO PRESUPUESTOS (anio, mes, monto_mxn)
+VALUES (EXTRACT(YEAR FROM CURRENT_DATE)::int, EXTRACT(MONTH FROM CURRENT_DATE)::int, 20000);

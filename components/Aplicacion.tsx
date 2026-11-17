@@ -5,28 +5,36 @@
  * (tamaño de letra y alto contraste).
  */
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { api, esPersonal, type Rol, type Sesion } from "../lib/api";
+import { api, permisosDe, type Permiso, type Sesion } from "../lib/api";
 import { Chatbot } from "./Chatbot";
 import { Aviso, Campo, mensajeDeError, type Mensaje } from "./ui";
 import { Busqueda } from "./vistas/Busqueda";
 import { Catalogo } from "./vistas/Catalogo";
 import { Inicio } from "./vistas/Inicio";
+import { MiCuenta } from "./vistas/MiCuenta";
 import { Multas } from "./vistas/Multas";
+import { Perfiles } from "./vistas/Perfiles";
 import { Prestamos } from "./vistas/Prestamos";
 import { Suspensiones } from "./vistas/Suspensiones";
 import { Usuarios } from "./vistas/Usuarios";
 
-export type Vista = "inicio" | "usuarios" | "catalogo" | "busqueda" | "prestamos" | "multas" | "suspensiones";
+export type Vista = "inicio" | "usuarios" | "perfiles" | "catalogo" | "busqueda" | "prestamos" | "multas" | "suspensiones" | "cuenta";
 
-const MENU: Array<{ vista: Vista; etiqueta: string; roles: Rol[] }> = [
-  { vista: "inicio", etiqueta: "Inicio", roles: ["Administrador", "Bibliotecario"] },
-  { vista: "prestamos", etiqueta: "Prestar y devolver", roles: ["Administrador", "Bibliotecario"] },
-  { vista: "multas", etiqueta: "Multas y adeudos", roles: ["Administrador", "Bibliotecario"] },
-  { vista: "suspensiones", etiqueta: "Alumnos suspendidos", roles: ["Administrador", "Bibliotecario"] },
-  { vista: "catalogo", etiqueta: "Gestionar libros", roles: ["Administrador", "Bibliotecario"] },
-  { vista: "busqueda", etiqueta: "Buscar libros", roles: ["Administrador", "Bibliotecario", "Profesor", "Alumno", "Colaborador"] },
-  { vista: "usuarios", etiqueta: "Gestión de usuarios", roles: ["Administrador"] },
+/** Menú por perfil (HU6-SP0): cada opción aparece si el perfil tiene alguno de sus permisos. */
+const MENU: Array<{ vista: Vista; etiqueta: string; permisos: Permiso[] | "todos" }> = [
+  { vista: "inicio", etiqueta: "Inicio", permisos: ["prestamos", "devoluciones", "multas", "suspensiones", "gestionar-libros"] },
+  { vista: "prestamos", etiqueta: "Prestar y devolver", permisos: ["prestamos", "devoluciones"] },
+  { vista: "multas", etiqueta: "Multas y adeudos", permisos: ["multas"] },
+  { vista: "suspensiones", etiqueta: "Alumnos suspendidos", permisos: ["suspensiones"] },
+  { vista: "catalogo", etiqueta: "Gestionar libros", permisos: ["gestionar-libros", "compras"] },
+  { vista: "busqueda", etiqueta: "Buscar libros", permisos: ["buscar-libros"] },
+  { vista: "usuarios", etiqueta: "Gestión de usuarios", permisos: ["cuentas"] },
+  { vista: "perfiles", etiqueta: "Gestión de perfiles", permisos: ["perfiles"] },
+  { vista: "cuenta", etiqueta: "Mi cuenta", permisos: "todos" },
 ];
+const VISTAS = MENU.map((m) => m.vista);
+const permitida = (s: Sesion, v: Vista) => { const m = MENU.find((x) => x.vista === v); return !!m && (m.permisos === "todos" || m.permisos.some((p) => permisosDe(s).includes(p))); };
+const vistaDeDireccion = (): Vista | null => { const v = window.location.hash.replace(/^#\/?/, "") as Vista; return VISTAS.includes(v) ? v : null; };
 
 function preferencia(clave: string): string | null {
   try { return localStorage.getItem(clave); } catch { return null; }
@@ -54,14 +62,16 @@ function ControlesAccesibilidad() {
   );
 }
 
-function InicioSesion({ alEntrar }: { alEntrar: (s: Sesion) => void }) {
+function InicioSesion({ alEntrar }: { alEntrar: (s: Sesion, bienvenida: string) => void }) {
   const [mensaje, setMensaje] = useState<Mensaje>(null);
   const [enviando, setEnviando] = useState(false);
   const entrar = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); const d = new FormData(e.currentTarget);
     setEnviando(true);
-    try { alEntrar((await api<{ sesion: Sesion }>("/api/auth/sesion", { metodo: "POST", cuerpo: { identificador: d.get("identificador"), contrasena: d.get("contrasena") } })).sesion); }
-    catch (err) { setMensaje(mensajeDeError(err)); } finally { setEnviando(false); }
+    try {
+      const r = await api<{ sesion: Sesion; mensaje: string }>("/api/auth/sesion", { metodo: "POST", cuerpo: { identificador: d.get("identificador"), contrasena: d.get("contrasena") } });
+      alEntrar(r.sesion, r.mensaje);
+    } catch (err) { setMensaje(mensajeDeError(err)); setEnviando(false); }
   };
   return (
     <main className="pantalla-sesion">
@@ -97,15 +107,31 @@ export function Aplicacion() {
     return () => document.removeEventListener("keydown", tecla);
   }, [menuAbierto]);
 
+  const [bienvenida, setBienvenida] = useState<Mensaje>(null);
   useEffect(() => { void api<{ sesion: Sesion | null }>("/api/auth/sesion").then((r) => entrar(r.sesion)).catch(() => setSesion(null)); }, []);
-  const entrar = (s: Sesion | null) => { setSesion(s); if (s) setVista(esPersonal(s.rol) ? "inicio" : "busqueda"); };
-  const salir = async () => { await api("/api/auth/sesion", { metodo: "DELETE" }).catch(() => undefined); setSesion(null); };
-  const ir = (v: Vista) => { setVista(v); setMenuAbierto(false); document.getElementById("contenido")?.focus(); };
+  // Cada función tiene su dirección (#usuarios, #catalogo…): se puede abrir desde un enlace.
+  useEffect(() => {
+    const cambio = () => { const v = vistaDeDireccion(); if (v) setVista(v); };
+    window.addEventListener("hashchange", cambio);
+    return () => window.removeEventListener("hashchange", cambio);
+  }, []);
+  const entrar = (s: Sesion | null, saludo?: string) => {
+    setSesion(s);
+    if (!s) return;
+    if (saludo) setBienvenida({ tipo: "exito", texto: saludo });
+    setVista(vistaDeDireccion() ?? (permitida(s, "inicio") ? "inicio" : "busqueda"));
+  };
+  const salir = async () => { await api("/api/auth/sesion", { metodo: "DELETE" }).catch(() => undefined); setSesion(null); setBienvenida(null); };
+  const ir = (v: Vista) => { setVista(v); setMenuAbierto(false); setBienvenida(null); if (window.location.hash !== `#${v}`) window.history.pushState(null, "", `#${v}`); document.getElementById("contenido")?.focus(); };
 
   if (sesion === undefined) return <p className="vacio" role="status">Comprobando sesión…</p>;
   if (!sesion) return <InicioSesion alEntrar={entrar} />;
-  const opciones = MENU.filter((m) => m.roles.includes(sesion.rol));
-  const titulo = opciones.find((o) => o.vista === vista)?.etiqueta ?? "";
+  const opciones = MENU.filter((m) => permitida(sesion, m.vista));
+  // HU1-SP0, escenario 5: abrir una función fuera del perfil desde una dirección directa.
+  const denegada = !permitida(sesion, vista);
+  // HU2-SP0, escenario 4: el personal sin el permiso de cuentas que abre la Gestión de usuarios.
+  const mensajeDenegada = vista === "usuarios" && permitida(sesion, "inicio") ? "Solo el administrador puede dar de alta cuentas." : "No tienes permisos para acceder a esta función.";
+  const titulo = MENU.find((o) => o.vista === vista)?.etiqueta ?? "";
 
   return (
     <div className="estructura">
@@ -117,7 +143,7 @@ export function Aplicacion() {
         <ul className="menu">
           {opciones.map((o) => <li key={o.vista}><button aria-current={vista === o.vista ? "page" : undefined} onClick={() => ir(o.vista)}>{o.etiqueta}</button></li>)}
         </ul>
-        <div className="usuario-actual"><strong>{sesion.nombre}</strong><span>{sesion.rol} · {sesion.identificador}</span></div>
+        <div className="usuario-actual"><strong>{sesion.nombre}</strong><span>{sesion.perfil && sesion.perfil !== sesion.rol ? `${sesion.rol} (perfil ${sesion.perfil})` : sesion.rol} · {sesion.identificador}</span></div>
       </nav>
       {/* Con el menú del celular abierto, la página de atrás no recibe foco ni clics */}
       <div className="principal" {...(menuAbierto ? ({ inert: "" } as Record<string, string>) : {})}>
@@ -127,13 +153,20 @@ export function Aplicacion() {
           <div className="acciones-barra"><ControlesAccesibilidad /><button className="boton chico" onClick={() => void salir()}>Cerrar sesión</button></div>
         </header>
         <main id="contenido" className="contenido" tabIndex={-1}>
-          {vista === "inicio" && <Inicio sesion={sesion} ir={ir} />}
-          {vista === "prestamos" && <Prestamos />}
-          {vista === "multas" && <Multas sesion={sesion} />}
-          {vista === "suspensiones" && <Suspensiones />}
-          {vista === "catalogo" && <Catalogo sesion={sesion} />}
-          {vista === "busqueda" && <Busqueda />}
-          {vista === "usuarios" && <Usuarios sesion={sesion} />}
+          <Aviso mensaje={bienvenida} alCerrar={() => setBienvenida(null)} />
+          {denegada ? <Aviso mensaje={{ tipo: "error", texto: mensajeDenegada }} /> : (
+            <>
+              {vista === "inicio" && <Inicio sesion={sesion} ir={ir} />}
+              {vista === "prestamos" && <Prestamos />}
+              {vista === "multas" && <Multas sesion={sesion} />}
+              {vista === "suspensiones" && <Suspensiones />}
+              {vista === "catalogo" && <Catalogo sesion={sesion} />}
+              {vista === "busqueda" && <Busqueda />}
+              {vista === "usuarios" && <Usuarios sesion={sesion} />}
+              {vista === "perfiles" && <Perfiles />}
+              {vista === "cuenta" && <MiCuenta />}
+            </>
+          )}
         </main>
       </div>
       <Chatbot />

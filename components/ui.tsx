@@ -10,6 +10,25 @@ export function mensajeDeError(error: unknown): Mensaje {
   return { tipo: "error", texto: error instanceof Error ? error.message : "Ocurrió un error inesperado." };
 }
 
+/** Mensaje de éxito con el texto que devolvió el servidor ("Cuenta creada con clave…"). */
+export function mensajeDeExito(respuesta: unknown, otro: string): Mensaje {
+  const r = respuesta as { mensaje?: string; motivos?: string[] } | null;
+  return { tipo: "exito", texto: r?.mensaje ?? otro, motivos: r?.motivos };
+}
+
+/**
+ * Marca con aria-invalid los campos que el servidor rechazó ("Revisa los campos
+ * marcados…") y lleva el foco al primero (WCAG 3.3.1). Sin error, limpia las marcas.
+ */
+export function marcarCampos(formulario: HTMLFormElement | null, error?: unknown) {
+  if (!formulario) return;
+  formulario.querySelectorAll("[aria-invalid]").forEach((c) => c.removeAttribute("aria-invalid"));
+  const campos = error instanceof ErrorApi ? error.campos : [];
+  const elementos = campos.map((c) => formulario.querySelector<HTMLElement>(`[name="${c}"]`)).filter((e): e is HTMLElement => !!e);
+  elementos.forEach((e) => e.setAttribute("aria-invalid", "true"));
+  elementos[0]?.focus();
+}
+
 export function Aviso({ mensaje, alCerrar }: { mensaje: Mensaje; alCerrar?: () => void }) {
   if (!mensaje) return null;
   return (
@@ -23,15 +42,29 @@ export function Aviso({ mensaje, alCerrar }: { mensaje: Mensaje; alCerrar?: () =
   );
 }
 
-type PropsCampo = { etiqueta: string; nombre: string; tipo?: string; requerido?: boolean; valorInicial?: string | number; ayuda?: string; min?: number; max?: number; paso?: string; patron?: string; autoFoco?: boolean };
-export function Campo({ etiqueta, nombre, tipo = "text", requerido, valorInicial, ayuda, min, max, paso, patron, autoFoco }: PropsCampo) {
+type PropsCampo = { etiqueta: string; nombre: string; tipo?: string; requerido?: boolean; valorInicial?: string | number; ayuda?: string; min?: number; max?: number; paso?: string; patron?: string; autoFoco?: boolean; sugerencias?: readonly string[] };
+export function Campo({ etiqueta, nombre, tipo = "text", requerido, valorInicial, ayuda, min, max, paso, patron, autoFoco, sugerencias }: PropsCampo) {
   const id = useId();
   return (
     <label className="campo" htmlFor={id}>
       <span>{etiqueta}{requerido && <abbr title="obligatorio" aria-hidden="true"> *</abbr>}</span>
-      <input id={id} name={nombre} type={tipo} required={requerido} defaultValue={valorInicial} min={min} max={max} step={paso} pattern={patron} autoFocus={autoFoco} aria-describedby={ayuda ? `${id}-ayuda` : undefined} />
+      <input id={id} name={nombre} type={tipo} required={requerido} defaultValue={valorInicial} min={min} max={max} step={paso} pattern={patron} autoFocus={autoFoco}
+        aria-describedby={ayuda ? `${id}-ayuda` : undefined} list={sugerencias?.length ? `${id}-lista` : undefined} autoComplete={sugerencias ? "off" : undefined} />
+      {sugerencias && sugerencias.length > 0 && <datalist id={`${id}-lista`}>{sugerencias.map((s) => <option key={s} value={s} />)}</datalist>}
       {ayuda && <small id={`${id}-ayuda`}>{ayuda}</small>}
     </label>
+  );
+}
+
+/** Grupo de casillas con leyenda (p. ej. los permisos de un perfil). */
+export function GrupoCasillas({ leyenda, nombre, opciones }: { leyenda: string; nombre: string; opciones: Array<{ valor: string; texto: string }> }) {
+  return (
+    <fieldset className="grupo-casillas" name={nombre}>
+      <legend>{leyenda}</legend>
+      {opciones.map((o) => (
+        <label key={o.valor} className="casilla"><input type="checkbox" name={nombre} value={o.valor} /><span>{o.texto}</span></label>
+      ))}
+    </fieldset>
   );
 }
 

@@ -9,7 +9,7 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 | Sprint | Requisito | Implementación | Pruebas |
 |---|---|---|---|
 | 0 | Ver la base de datos de la escuela y verificar usuarios | `usuarios` → `sincronizarConBaseEscolar` | `chatbot-y-sincronizacion.test.ts` → "sincroniza…" |
-| 0 | Autenticación usuario/contraseña (JWT, bloqueo tras 5 intentos) | `usuarios` → `iniciarSesion`; `comun/auth.ts` | `usuarios.test.ts` → Autenticación; `permisos.test.ts` → JWT |
+| 0 | Autenticación usuario/contraseña (JWT, bloqueo tras 3 intentos por 15 minutos, HU1-SP0) | `usuarios` → `iniciarSesion`; `comun/auth.ts` | `usuarios.test.ts` → Autenticación; `permisos.test.ts` → JWT |
 | 0 | Roles de acceso | `comun/auth.ts` → `PERMISOS`; `infra/nginx/sigeb.conf` | `permisos.test.ts`; `usuarios.test.ts` → "Acceso por rol…" |
 | 1 | Solicitud de compra de libros | `gestionar-libros` → solicitudes | `libros.test.ts` → "Solicitud de compra" |
 | 1 | Ficha bibliográfica (con precio USD) | `gestionar-libros` → `crear`/`actualizar`; `dominio/libros.ts` | `unit/libros.test.ts`; `libros.test.ts` → Ficha |
@@ -34,11 +34,33 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 | 4 | Chatbot: préstamos vigentes, vencimientos y multas | `chatbot` → `respuestaPersonal` | `chatbot-y-sincronizacion.test.ts` |
 | 4 | Chatbot en web y app | `components/Chatbot.tsx`; `app-movil/App.tsx` | Verificación manual en navegador (2026-11-13) y en un celular real con Expo Go (2026-11-15) |
 
+## Historias de usuario (Evidencia 06) → código → pruebas
+
+Las 13 historias y sus 57 escenarios se verificaron contra el sistema en marcha el 2026-11-16. El guion de la exposición (`docs/guion-exposicion.md`) dice en qué paso se muestra cada escenario.
+
+| Historia | Implementación | Pruebas |
+|---|---|---|
+| HU1-SP0 Autenticación (bienvenida, contraseña incorrecta, no registrado o inactivo, bloqueo a los 3 intentos por 15 min, función fuera del perfil) | `usuarios` → `iniciarSesion`; `comun/auth.ts` → `evaluarAcceso`; `X-Mensaje` en `infra/nginx/sigeb.conf`; rutas `#vista` en `Aplicacion.tsx` | `usuarios.test.ts` → "HU1-SP0…"; `permisos.test.ts` → "HU1-SP0 esc. 5" |
+| HU2-SP0 Alta de cuentas (cualquier tipo, contraseña temporal por correo, duplicada, campos marcados, solo el administrador) | `usuarios` → `crearCuenta`; `NuevaCuentaDto`; `marcarCampos` en `components/ui.tsx` | `usuarios.test.ts` → "HU2-SP0…"; `permisos.test.ts` → "HU2-SP0 esc. 4" |
+| HU3-SP0 Baja de cuentas (motivo, pendientes, inexistente o ya dada de baja, propia; cierra sesiones) | `usuarios` → `darDeBaja`; `verificar` revisa que la cuenta siga activa | `usuarios.test.ts` → "HU3-SP0…" |
+| HU4-SP0 Cambio de cuentas (historial, clave duplicada, datos inválidos, el usuario no cambia los suyos) | `usuarios` → `actualizar`, `historial`, `editarMiCuenta`; tabla `HISTORIAL_CAMBIOS` | `usuarios.test.ts` → "HU4-SP0…" |
+| HU5-SP0 Consulta de cuentas (clave, nombre, tipo y estatus; bajas con fecha, motivo y quién; sin datos) | `usuarios` → `listar`; `components/vistas/Usuarios.tsx` | `usuarios.test.ts` → "HU3-SP0…", "HU5-SP0 esc. 4" |
+| HU6-SP0 Gestión de perfiles (crear, asignar, eliminar; duplicado, sin permisos, en uso) | Tabla `PERFILES`; `usuarios` → `crearPerfil`, `asignarPerfil`, `eliminarPerfil`; permisos en el JWT | `usuarios.test.ts` → "HU6-SP0…"; `permisos.test.ts` → "HU6-SP0…" |
+| HU1-SP1 Alta de libros (clave LIB-0000, ejemplares Disponible, duplicado, incompletos, ubicación inexistente) | `gestionar-libros` → `crear`, `validarUbicacion`; tabla `UBICACIONES` | `libros.test.ts` → "HU1-SP1…"; `unit/libros.test.ts` → clave |
+| HU2-SP1 Baja de libros (motivo, último ejemplar, prestado o reservado, inexistente o sin motivo) | `gestionar-libros` → `darDeBajaEjemplar`; `validarBajaEjemplar` | `libros.test.ts` → "HU2-SP1…"; `unit/libros.test.ts` → tabla de decisión |
+| HU3-SP1 Cambio de libros (historial, cambio de ubicación, datos inválidos, ISBN duplicado) | `gestionar-libros` → `actualizar`, `cambiarUbicacion`, `historial` | `libros.test.ts` → "HU3-SP1…" |
+| HU4-SP1 Consulta de libros (por clave o ISBN, estado de cada ejemplar, sin copias con devolución más próxima) | `gestionar-libros` → `consultarPorDato`, `ficha` | `libros.test.ts` → "HU4-SP1…" |
+| HU5-SP1 Compra de libros (presupuesto mensual, orden con folio, recepción completa o parcial, aviso al bibliotecario) | `gestionar-libros` → `registrarOrden`, `recibirOrden`; tablas `PRESUPUESTOS`, `ORDENES_COMPRA`, `ORDEN_COMPRA_DETALLE`, `AVISOS_PERSONAL` | `libros.test.ts` → "HU5-SP1…"; `unit/libros.test.ts` → presupuesto y recepción |
+| HU6-SP1 Listado por filtro (un renglón por ejemplar, exportar o imprimir, sin resultados, sin filtros) | `gestionar-libros` → `inventario`; `components/vistas/Inventario.tsx` | `libros.test.ts` → "HU6-SP1…" |
+| HU1-SP2 Búsqueda con ubicación (criterio y 3 caracteres, varias ubicaciones, sin copias, sin resultados, sin ubicación con aviso) | `buscar-libros` → `buscar`; `components/vistas/Busqueda.tsx`; `app-movil/App.tsx` | `libros.test.ts` → "HU1-SP2…", "HU2-SP1…" |
+
+Accesibilidad de las vistas nuevas: `npm run test:accesibilidad` audita 25 pantallas (entre ellas Gestión de perfiles, Mi cuenta, Listado para inventario y Compra de libros) con 0 violaciones WCAG 2.1 AA.
+
 ## Requerimientos no funcionales (Propuesta 3.3)
 
 | Requerimiento | Cómo se cumple | Cómo se verifica | Estado |
 |---|---|---|---|
-| Autenticación | JWT HS256, scrypt, bloqueo tras 5 intentos | `usuarios.test.ts` | ✅ |
+| Autenticación | JWT HS256, scrypt, bloqueo tras 3 intentos (HU1-SP0; configurable con INTENTOS_MAXIMOS) | `usuarios.test.ts` | ✅ |
 | Backup/Restore | `infra/respaldos/*.sh`; contenedor `respaldos`; diario con 30 días de retención | Restauración completa probada el 2026-11-13: mismos conteos y checksum | ✅ |
 | Respuesta ≤ 3 s | Índices (`db/esquema.sql`); tiempo límite de 2.5 s en integraciones; 5 s en el gateway | k6 con 100 usuarios (`pruebas/carga/k6-busqueda.js`): p95 de 33.8 ms directo a los servicios y 81.5 ms a través de NGINX en Docker, 0 % de errores | ✅ |
 | Multiplataforma | Web responsiva + React Native | Build de la web; app probada en un celular real con Expo Go (SDK 58) el 2026-11-15: inicio de sesión, búsqueda y asistente | ✅ (falta repetir en el otro sistema operativo, Android o iOS) |

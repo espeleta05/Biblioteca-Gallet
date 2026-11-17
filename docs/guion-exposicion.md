@@ -32,28 +32,46 @@ Demostración en vivo de las **8 funciones del Product Backlog** (Propuesta 2.3)
 | ALU007 / ALU008 | ALU007 tiene el único ejemplar de *Ingeniería de software en Google*; ALU008 lo **espera** | Lista de espera |
 | ALU009 | **Suspendido** por mal uso | Bloqueo por suspensión |
 | ALU010 | Préstamo con **1 renovación** ya hecha | Límite de renovaciones |
+| ALU099 | Cuenta **dada de baja** (egresó) | HU1-SP0 esc. 3 y HU5-SP0 esc. 2 |
+| *Design Patterns* | Ejemplar **sin ubicación** registrada | HU1-SP2 esc. 5 |
+| *Libro de demostración 05* | Su único ejemplar está **reservado** para ALU012 | HU2-SP1 esc. 3 y HU4-SP1 |
+| *Clean Architecture* | Solicitud de compra **aprobada** | HU5-SP1 |
+| Perfil *Auxiliar de inventario* | Perfil sin cuentas | HU6-SP0 esc. 3 |
+
+Cada paso indica entre corchetes la historia de usuario y el escenario de la Evidencia 06 que demuestra.
 
 ---
 
 ## Sprint 0 · 1. Gestión de usuarios (cuenta `admin`)
 
-1. Inicia sesión con `admin`. **Punto a explicar:** el menú cambia según el rol.
-2. Abre **Gestión de usuarios** → **Verificar con base escolar**. **Punto a explicar:** los alumnos y profesores vienen de la base de datos escolar; aparece cuántos se consultaron, cuántos son nuevos y cuántos se dieron de baja.
-3. **Alta de personal:** crea un bibliotecario. **Punto a explicar:** desde SIGEB solo se da de alta al personal de la biblioteca.
-4. *(Opcional)* En la ventana de incógnito, escribe mal la contraseña de `ALU050` 5 veces. **Punto a explicar:** al quinto intento se bloquea la cuenta (Propuesta 3.3).
+1. Inicia sesión con `admin`: aparece **"Bienvenido(a), Administrador SIGEB."** y el menú según su perfil. [HU1-SP0 esc. 1]
+2. En incógnito, entra con `ALU099` → "Usuario no registrado o inactivo…". Escribe mal la contraseña de `ALU050` **3 veces** → "Tu cuenta se bloqueó… intenta de nuevo en 15 minutos". [HU1-SP0 esc. 2, 3 y 4]
+3. Como `ALU001`, escribe en la barra de direcciones `https://localhost/#usuarios` → "No tienes permisos para acceder a esta función". Con `B-0041` → "Solo el administrador puede dar de alta cuentas". [HU1-SP0 esc. 5 · HU2-SP0 esc. 4]
+4. **Gestión de usuarios → Alta de cuentas:** crea un alumno con contraseña temporal → "Cuenta creada con clave…" (se le envía por correo). Repite la misma clave → "Ya existe una cuenta con la clave…". Pon un correo sin @ → los campos quedan **marcados en rojo**. [HU2-SP0 esc. 1–3]
+5. **Baja de cuentas:** `ALU005` → no se puede, y lista su préstamo pendiente. `admin` → "No puedes dar de baja tu propia cuenta". `ALU030` con motivo → "Cuenta dada de baja" (si tenía sesión abierta, se cierra). No uses `ALU001`: se usa después en los préstamos. [HU3-SP0 esc. 1–4]
+6. **Consultar cuentas** sin escribir nada → "Captura una clave o nombre…". Estatus **Inactiva** → se ven la fecha, el motivo y quién hizo la baja. [HU5-SP0 esc. 1–4]
+7. En una cuenta: **Cambiar datos** (nombre o teléfono) → **Historial** muestra el dato anterior, la fecha y quién. Cambia la matrícula por una existente → "La clave … ya pertenece a otra cuenta". [HU4-SP0 esc. 1–3]
+8. Como alumno: **Mi cuenta → Editar mis datos** → "Solo el administrador puede cambiar estos datos…". También muestra sus préstamos y multas. [HU4-SP0 esc. 4]
+9. **Gestión de perfiles:** crea "Becario" con *Buscar libros* y *Gestionar libros*; repite el nombre → duplicado; sin permisos → "Selecciona al menos un permiso". **Asignar perfil** a `ALU020` (aplica desde su siguiente inicio de sesión). Elimina "Becario" → no se puede (tiene cuentas); elimina "Auxiliar de inventario" → "Perfil eliminado". [HU6-SP0 esc. 1–5]
+10. **Verificar con base escolar.** **Punto a explicar:** los alumnos y profesores también se verifican contra la base de datos escolar.
 
-## Sprint 1 · 2. Gestionar libros (cuenta `admin`)
+## Sprint 1 · 2. Gestionar libros (cuenta `B-0041`, compras con `admin`)
 
-1. **Gestionar libros:** filtra por **Tema** y por **Estado de ejemplares**. **Punto a explicar:** es el listado de libros por diversos filtros (inventario).
-2. **Ficha** de un libro: ISBN, autores, editorial y **precio de la última compra en dólares**. **Punto a explicar:** ese precio se usa en la Regla 4.
-3. En la ficha, cambia un ejemplar a **Dañado**. **Punto a explicar:** el estado del libro (prestado, perdido, etc.).
-4. Pestaña **Solicitudes de compra:** aprueba "Refactoring". **Punto a explicar:** solo la solicitud; el proceso de compras está excluido (9.3).
+1. **Alta de libros** con ubicación *Piso 9* → "La ubicación … no existe en la Biblioteca". Con ISBN `9780134685991` → "El libro ya existe con clave LIB-0001…". Completa uno nuevo → "Libro registrado con clave LIB-00xx". [HU1-SP1 esc. 1–4]
+2. **Consulta de libros** con `LIB-0005` → ficha completa; como no hay copias, muestra **la fecha de devolución más próxima**. `LIB-0011` → su ejemplar aparece **Reservado**. Sin dato o con un ISBN que no existe → mensajes. [HU4-SP1 esc. 1–4]
+3. **Baja de libros:** el ejemplar reservado de `LIB-0011` → "No se puede dar de baja un ejemplar prestado o reservado". `DQM-002` sin motivo → "Selecciona el motivo"; con *Obsoleto* → "Ejemplar dado de baja". [HU2-SP1 esc. 1, 3 y 4]
+4. En la ficha: cambia un dato y abre **Historial de cambios**; **Cambiar la ubicación del libro** → "Ubicación actualizada"; cambia el ISBN por uno existente → "El ISBN ya pertenece al libro con clave…". [HU3-SP1 esc. 1–4]
+5. **Listado para inventario:** sin filtros → "Elige al menos un filtro"; Tema *Programación* y Piso *Piso 2* → un renglón por ejemplar con su total; **Exportar CSV** o **Imprimir** → "Listado generado". [HU6-SP1 esc. 1–4]
+6. Con `admin`: aprueba "Refactoring" en **Solicitudes de compra**. **Compra de libros:** *Clean Architecture* a $12,000 → "La compra excede el presupuesto del mes por…"; a $850 → "Orden de compra OC-000001 registrada". **Recepción** de 1 de 2 → "Falta 1 libro por recibir…" (Recibida parcialmente) y el bibliotecario ve el pendiente en **Inicio**. [HU5-SP1 esc. 1–5]
 
-## Sprint 1 · 3. Buscar libros (ventana de incógnito, cuenta `ALU001`)
+## Sprint 2 (HU1-SP2) · 3. Buscar libros (ventana de incógnito, cuenta `ALU001`)
 
-1. Inicia sesión con `ALU001`. **Punto a explicar:** el alumno solo ve **Buscar libros** y el **Asistente**.
-2. Busca "java" y marca **Solo disponibles**. **Punto a explicar:** muestra la existencia y la ubicación (piso, área, pasillo y estante).
-3. *(Opcional)* Muestra lo mismo en la **app móvil** con Expo Go.
+1. Inicia sesión con `ALU001`. **Punto a explicar:** el alumno ve **Buscar libros**, **Mi cuenta** y el **Asistente**.
+2. **Buscar por** *Título* "java" → cada ubicación con sus copias disponibles. Con "ja" → pide mínimo 3 caracteres. [esc. 1 y 2]
+3. *Editorial* "prentice" → *Clean Code* "Sin copias disponibles" con la **devolución más próxima**. [esc. 3]
+4. "zzzz" → "No se encontraron libros con ese criterio" y sugiere otro criterio. [esc. 4]
+5. *Título* "design" → *Design Patterns* con "Ubicación no disponible: pregunta en el mostrador"; el bibliotecario ve el aviso en **Inicio**. [esc. 5]
+6. *(Opcional)* Muestra lo mismo en la **app móvil** con Expo Go.
 
 ## Sprint 2 · 4. Prestar libros (cuenta `B-0041`)
 

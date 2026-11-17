@@ -28,3 +28,14 @@ INSERT INTO CHATBOT_REGLAS (tema, pregunta_frecuente, palabras_clave, respuesta_
      'Se cobra el valor presente del libro: el precio de su última compra en dólares por el tipo de cambio del día publicado por Banxico.'),
     ('Préstamos', '¿Cuántos libros puedo llevar?', 'cuantos libros llevar llevarme maximo limite ejemplares pedir prestar prestan sacar',
      'Puedes tener hasta 2 ejemplares prestados a la vez, siempre que no debas multas ni tengas préstamos vencidos. Los libros de consulta interna o reservados no se prestan.');
+
+-- Perfiles base (HU6-SP0). Cada uno lleva el nombre de su tipo de cuenta y es el
+-- que usa una cuenta sin perfil asignado. El administrador puede crear otros.
+-- Permisos: ver PERMISOS_SISTEMA en servicios/comun/auth.ts.
+INSERT INTO PERFILES (id_perfil, nombre, permisos, es_base) VALUES
+    (1, 'Administrador', ARRAY['buscar-libros','gestionar-libros','prestamos','devoluciones','multas','suspensiones','cuentas','perfiles','compras','chatbot'], TRUE),
+    (2, 'Bibliotecario', ARRAY['buscar-libros','gestionar-libros','prestamos','devoluciones','multas','suspensiones','chatbot'], TRUE),
+    (3, 'Alumno',        ARRAY['buscar-libros','mis-prestamos','chatbot'], TRUE),
+    (4, 'Profesor',      ARRAY['buscar-libros','mis-prestamos','chatbot'], TRUE),
+    (5, 'Colaborador',   ARRAY['buscar-libros','mis-prestamos','chatbot'], TRUE);
+SELECT setval(pg_get_serial_sequence('perfiles', 'id_perfil'), (SELECT MAX(id_perfil) FROM PERFILES));

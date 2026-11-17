@@ -21,8 +21,12 @@ export const config = {
     if (secreto.length < 32) throw new Error("JWT_SECRET debe tener al menos 32 caracteres.");
     return secreto;
   },
-  /** Bloqueo tras 5 intentos fallidos (Propuesta 3.3). */
-  intentosMaximos: 5,
+  /**
+   * Intentos fallidos antes del bloqueo. La Propuesta 3.3 dice 5 y la HU1-SP0
+   * (Evidencia 06) dice 3; se usa 3 y se cambia con INTENTOS_MAXIMOS
+   * (docs/decisiones-pendientes.md).
+   */
+  intentosMaximos: Number(process.env.INTENTOS_MAXIMOS ?? 3),
   /** Duración del bloqueo; la propuesta no la fija (docs/decisiones-pendientes.md). */
   minutosBloqueo: Number(process.env.MINUTOS_BLOQUEO ?? 15),
   horasSesion: 8,
