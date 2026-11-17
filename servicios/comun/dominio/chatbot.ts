@@ -58,8 +58,11 @@ const EJEMPLOS = [
   "¿Qué libros tengo?",
 ];
 
-export const RESPUESTA_AYUDA =
-  `Soy el asistente de la biblioteca. Puedo responderte sobre vigencias, renovaciones, multas, costos de reposición y sobre tus préstamos. Por ejemplo: ${EJEMPLOS.join(" · ")}`;
+/** Una pregunta de ejemplo por línea: el chat las muestra como lista (white-space: pre-line). */
+export const RESPUESTA_AYUDA = [
+  "Soy el asistente de la biblioteca. Puedo responderte sobre vigencias, renovaciones, multas, costos de reposición y sobre tus préstamos. Por ejemplo:",
+  ...EJEMPLOS.map((e) => `• ${e}`),
+].join("\n");
 
 export const RESPUESTA_DESCONOCIDA =
   `No entendí tu pregunta. Prueba con "${EJEMPLOS[0]}" o "${EJEMPLOS[5]}", o escribe "ayuda" para ver todo lo que puedo responder.`;

@@ -32,7 +32,7 @@ async function iniciarSesion(pagina, usuario) {
   await pagina.getByLabel("Usuario, matrícula o nómina").fill(usuario);
   await pagina.getByLabel("Contraseña").fill("1234");
   await pagina.getByRole("button", { name: "Iniciar sesión" }).click();
-  await pagina.getByRole("navigation", { name: "Menú principal" }).waitFor();
+  await pagina.locator("#contenido").waitFor();
 }
 
 async function irA(pagina, vista) {
@@ -49,7 +49,8 @@ async function abrirYAuditar(pagina, boton, nombre) {
 
 const navegador = await chromium.launch({ executablePath: ejecutable });
 try {
-  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 } });
+  // ignoreHTTPSErrors: el gateway de pruebas usa un certificado autofirmado (https://localhost).
+  const contexto = await navegador.newContext({ viewport: { width: 1280, height: 900 }, ignoreHTTPSErrors: true });
   const pagina = await contexto.newPage();
   await pagina.goto(URL);
   await pagina.getByLabel("Usuario, matrícula o nómina").waitFor();
@@ -89,7 +90,7 @@ try {
   await pagina.setViewportSize({ width: 390, height: 844 });
   await iniciarSesion(pagina, "ALU001");
   await auditar(pagina, "Buscar libros (alumno, 390 px)");
-  await pagina.getByRole("button", { name: "Asistente de la biblioteca" }).click();
+  await pagina.getByRole("button", { name: /^Asistente/ }).click();
   await pagina.getByLabel("Escribe tu pregunta").fill("¿Tengo multas?");
   await pagina.getByRole("button", { name: "Enviar" }).click();
   await pagina.getByText(/multas pendientes|No tienes multas/).waitFor();

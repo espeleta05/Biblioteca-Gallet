@@ -2,7 +2,7 @@
 /** Buscar libros (Sprint 1): existencia y ubicación por diversos filtros. Todos los roles. */
 import { useState } from "react";
 import { api, consulta } from "../../lib/api";
-import { Aviso, Etiqueta, Selector, Tabla, useDatos } from "../ui";
+import { Aviso, Casilla, Etiqueta, Paginacion, Selector, Tabla, useDatos, usePaginacion } from "../ui";
 
 type Resultado = { id: number; isbn: string; titulo: string; autores: string; tema: string; editorial: string; tipoUso: string; existencia: number; disponibles: number; ubicaciones: Array<{ piso: string; area: string; pasillo: string; estante: string }> };
 
@@ -12,24 +12,22 @@ export function Busqueda() {
   const opciones = useDatos(() => api<{ temas: string[]; pisos: string[] }>("/api/busqueda/filtros"), []);
   const resultados = useDatos(() => api<Resultado[]>(`/api/busqueda${consulta(enviado)}`), [enviado]);
   const lista = resultados.datos ?? [];
+  const paginas = usePaginacion(lista);
 
   return (
     <>
-      <div className="encabezado"><div><h2>Buscar libros</h2></div></div>
       <form className="panel filtros" role="search" onSubmit={(e) => { e.preventDefault(); setEnviado(filtro); }}>
-        <label className="campo"><span>Título, autor, ISBN o tema</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
+        <label className="campo ancho"><span>Título, autor, ISBN o tema</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
         <label className="campo"><span>Autor</span><input value={filtro.autor} onChange={(e) => setFiltro({ ...filtro, autor: e.target.value })} /></label>
         <Selector etiqueta="Tema" opciones={opciones.datos?.temas ?? []} todos="Todos los temas" valor={filtro.tema} alCambiar={(tema) => setFiltro({ ...filtro, tema })} />
         <Selector etiqueta="Piso" opciones={opciones.datos?.pisos ?? []} todos="Todos los pisos" valor={filtro.piso} alCambiar={(piso) => setFiltro({ ...filtro, piso })} />
-        <label className="campo"><span>Disponibilidad</span>
-          <span><input type="checkbox" checked={filtro.soloDisponibles} onChange={(e) => setFiltro({ ...filtro, soloDisponibles: e.target.checked })} /> Solo disponibles</span>
-        </label>
+        <Casilla etiqueta="Solo disponibles" marcada={filtro.soloDisponibles} alCambiar={(soloDisponibles) => setFiltro({ ...filtro, soloDisponibles })} />
         <button className="boton primario" type="submit">Buscar</button>
       </form>
       <Aviso mensaje={resultados.error} />
       <p role="status">{resultados.cargando ? "Buscando…" : `${lista.length} libro(s) encontrado(s).`}</p>
-      <Tabla titulo="Resultados de la búsqueda" columnas={["Libro", "Tema", "Existencia", "Ubicación de ejemplares disponibles", "Uso"]} vacio="No se encontraron libros con esos filtros." cantidad={lista.length}>
-        {lista.map((l) => (
+      <Tabla titulo="Resultados de la búsqueda" columnas={["Libro", "Tema", "Existencia", "Ubicación de ejemplares disponibles", "Uso"]} vacio="No se encontraron libros con esos filtros." cantidad={lista.length} pie={<Paginacion {...paginas} />}>
+        {paginas.visibles.map((l) => (
           <tr key={l.id}>
             <td><b>{l.titulo}</b><small>{l.autores} · {l.editorial} · ISBN {l.isbn}</small></td>
             <td>{l.tema}</td>

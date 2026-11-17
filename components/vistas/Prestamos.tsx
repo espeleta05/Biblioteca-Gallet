@@ -6,7 +6,7 @@
  */
 import { useCallback, useState } from "react";
 import { api, consulta, fecha, pesos } from "../../lib/api";
-import { Aviso, Etiqueta, mensajeDeError, Modal, Selector, Sugerencias, Tabla, useDatos, type Mensaje } from "../ui";
+import { Aviso, Etiqueta, mensajeDeError, Modal, Pestanas, Selector, Sugerencias, Tabla, useDatos, type Mensaje } from "../ui";
 
 type Solicitante = { idCredencial: number; nombre: string; identificador: string; rol: string; activo: boolean; suspendido: boolean; multasPendientes: number; prestamosActivos: number; vencimientosActivos: string[]; politica: { diasHabiles: number; maxEjemplares: number; maxRenovaciones: number } };
 type LibroPrestable = { id: number; titulo: string; isbn: string; tipoUso: string; disponibles: number; enEspera: number };
@@ -14,6 +14,9 @@ type Prestamo = { id: number; titulo: string; isbn: string; ejemplar: string; so
 type Espera = { id: number; titulo: string; solicitante: string; identificador: string; estado: string; turno: number; fechaSolicitud: string };
 type Cargo = { motivo: string; montoMxn: number };
 type ResultadoPrestamo = { folio: string; vencimiento: string; ejemplar: string; ubicacion: string; contenido: string; envio: { estado: string; detalle: string; destino: string } };
+
+/** Fecha de hoy en la zona horaria de la biblioteca, AAAA-MM-DD. */
+const hoyMonterrey = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Monterrey" }).format(new Date());
 
 const CANALES = ["Impresión", "Correo", "WhatsApp"] as const;
 const CONDICIONES = ["Buen estado", "Dañado", "Perdido", "Robado"] as const;
@@ -72,12 +75,13 @@ export function Prestamos() {
   const alertasSolicitante = solicitante ? [
     !solicitante.activo && "Cuenta inactiva", solicitante.suspendido && "Suspendido",
     solicitante.multasPendientes > 0 && `${solicitante.multasPendientes} multa(s) pendiente(s)`,
+    // Regla 1: un préstamo vencido sin devolver también impide prestar.
+    solicitante.vencimientosActivos.some((v) => v < hoyMonterrey()) && `${solicitante.vencimientosActivos.filter((v) => v < hoyMonterrey()).length} préstamo(s) vencido(s)`,
     solicitante.prestamosActivos >= solicitante.politica.maxEjemplares && `Ya tiene ${solicitante.prestamosActivos} de ${solicitante.politica.maxEjemplares} ejemplares`,
   ].filter(Boolean) as string[] : [];
 
   return (
     <>
-      <div className="encabezado"><div><h2>Prestar y devolver libros</h2></div></div>
       <Aviso mensaje={mensaje} alCerrar={() => setMensaje(null)} />
       <section className="panel" aria-labelledby="titulo-prestamo">
         <h2 id="titulo-prestamo">Registrar préstamo</h2>
@@ -107,10 +111,7 @@ export function Prestamos() {
         </div>
       </section>
 
-      <div className="pestanas" role="tablist">
-        <button role="tab" aria-selected={pestana === "activos"} onClick={() => setPestana("activos")}>Préstamos activos</button>
-        <button role="tab" aria-selected={pestana === "espera"} onClick={() => setPestana("espera")}>Lista de espera ({espera.datos?.length ?? 0})</button>
-      </div>
+      <Pestanas etiqueta="Préstamos" activa={pestana} alCambiar={setPestana} opciones={[{ id: "activos", texto: "Préstamos activos" }, { id: "espera", texto: `Lista de espera (${espera.datos?.length ?? 0})` }]}>
       {pestana === "activos" ? (
         <>
           <div className="filtros"><label className="campo"><span>Buscar préstamo (persona, matrícula, libro o ISBN)</span><input value={busqueda} onChange={(e) => setBusqueda(e.target.value)} /></label></div>
@@ -130,7 +131,7 @@ export function Prestamos() {
           </Tabla>
         </>
       ) : (
-        <Tabla titulo="Lista de espera" columnas={["Libro", "Turno", "Persona", "Estado", ""]} vacio="Nadie está en lista de espera." cantidad={espera.datos?.length ?? 0}>
+        <Tabla titulo="Lista de espera" columnas={["Libro", "Turno", "Persona", "Estado", "Acciones"]} vacio="Nadie está en lista de espera." cantidad={espera.datos?.length ?? 0}>
           {(espera.datos ?? []).map((w) => (
             <tr key={w.id}>
               <td>{w.titulo}</td><td>{w.turno}</td><td><b>{w.solicitante}</b><small>{w.identificador} · desde {fecha(w.fechaSolicitud)}</small></td>
@@ -140,6 +141,7 @@ export function Prestamos() {
           ))}
         </Tabla>
       )}
+      </Pestanas>
 
       {devolucion && (
         <Modal titulo={`Devolver "${devolucion.prestamo.titulo}"`} alCerrar={() => setDevolucion(null)}>

@@ -5,7 +5,7 @@
  */
 import { useState, type FormEvent } from "react";
 import { api, consulta, fecha, type Sesion } from "../../lib/api";
-import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Selector, Tabla, useDatos, type Mensaje } from "../ui";
+import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Paginacion, Pestanas, Selector, Tabla, useDatos, usePaginacion, type Mensaje } from "../ui";
 
 const TIPOS_USO = ["Préstamo externo", "Consulta interna", "Reservado"] as const;
 const ESTADOS = ["Disponible", "Prestado", "Perdido", "Robado", "Dañado"] as const;
@@ -104,28 +104,25 @@ export function Catalogo({ sesion }: { sesion: Sesion }) {
   };
 
   const lista = libros.datos ?? [];
+  const paginas = usePaginacion(lista);
   return (
     <>
       <div className="encabezado">
-        <div><h2>Gestionar libros</h2></div>
         <div className="acciones"><button className="boton" onClick={() => setModal("compra")}>Solicitar compra</button><button className="boton primario" onClick={() => setModal("nueva")}>Nueva ficha</button></div>
       </div>
-      <div className="pestanas" role="tablist">
-        <button role="tab" aria-selected={pestana === "libros"} onClick={() => setPestana("libros")}>Libros</button>
-        <button role="tab" aria-selected={pestana === "compras"} onClick={() => setPestana("compras")}>Solicitudes de compra</button>
-      </div>
       <Aviso mensaje={mensaje ?? libros.error} alCerrar={() => setMensaje(null)} />
+      <Pestanas etiqueta="Gestionar libros" activa={pestana} alCambiar={setPestana} opciones={[{ id: "libros", texto: "Libros" }, { id: "compras", texto: "Solicitudes de compra" }]}>
       {pestana === "libros" ? (
         <>
           <div className="panel filtros" role="search" aria-label="Filtros del listado de libros">
-            <label className="campo"><span>Título, autor o ISBN</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
+            <label className="campo ancho"><span>Título, autor o ISBN</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
             <Selector etiqueta="Tema" opciones={catalogos.datos?.temas ?? []} todos="Todos" valor={filtro.tema} alCambiar={(tema) => setFiltro({ ...filtro, tema })} />
             <Selector etiqueta="Estado de ejemplares" opciones={ESTADOS} todos="Todos" valor={filtro.estado} alCambiar={(estado) => setFiltro({ ...filtro, estado })} />
             <Selector etiqueta="Tipo de uso" opciones={TIPOS_USO} todos="Todos" valor={filtro.tipoUso} alCambiar={(tipoUso) => setFiltro({ ...filtro, tipoUso })} />
             <Selector etiqueta="Piso" opciones={catalogos.datos?.pisos ?? []} todos="Todos" valor={filtro.piso} alCambiar={(piso) => setFiltro({ ...filtro, piso })} />
           </div>
-          <Tabla titulo="Listado de libros" columnas={["Libro", "Tema", "Uso", "Inventario", "Precio USD", ""]} vacio="No hay libros con esos filtros." cantidad={lista.length}>
-            {lista.map((l) => (
+          <Tabla titulo="Listado de libros" columnas={["Libro", "Tema", "Uso", "Inventario", "Precio USD", "Acciones"]} vacio="No hay libros con esos filtros." cantidad={lista.length} pie={<Paginacion {...paginas} />}>
+            {paginas.visibles.map((l) => (
               <tr key={l.id}>
                 <td><b>{l.titulo}</b><small>{l.autores} · ISBN {l.isbn}</small></td>
                 <td>{l.tema}</td>
@@ -138,7 +135,7 @@ export function Catalogo({ sesion }: { sesion: Sesion }) {
           </Tabla>
         </>
       ) : (
-        <Tabla titulo="Solicitudes de compra" columnas={["Libro", "Cantidad", "Justificación", "Solicitó", "Estatus", ""]} vacio="No hay solicitudes de compra." cantidad={solicitudes.datos?.length ?? 0}>
+        <Tabla titulo="Solicitudes de compra" columnas={["Libro", "Cantidad", "Justificación", "Solicitó", "Estatus", "Acciones"]} vacio="No hay solicitudes de compra." cantidad={solicitudes.datos?.length ?? 0}>
           {(solicitudes.datos ?? []).map((s) => (
             <tr key={s.id}>
               <td><b>{s.titulo}</b><small>{s.autor}</small></td><td>{s.cantidad}</td><td>{s.justificacion}</td><td>{s.solicitante}<small>{fecha(s.fecha)}</small></td>
@@ -148,6 +145,7 @@ export function Catalogo({ sesion }: { sesion: Sesion }) {
           ))}
         </Tabla>
       )}
+      </Pestanas>
 
       {modal === "nueva" && (
         <Modal titulo="Nueva ficha bibliográfica" alCerrar={() => setModal(null)}>

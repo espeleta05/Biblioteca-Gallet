@@ -5,7 +5,7 @@
  */
 import { useState, type FormEvent } from "react";
 import { api, consulta, fecha, type Sesion } from "../../lib/api";
-import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Selector, Tabla, useDatos, type Mensaje } from "../ui";
+import { Aviso, Campo, Etiqueta, mensajeDeError, Modal, Paginacion, Selector, Tabla, useDatos, usePaginacion, type Mensaje } from "../ui";
 
 type Usuario = { id: number; identificador: string; nombre: string; rol: string; estatus: string; correo: string; telefono: string | null; activoEnEscuela: boolean | null; verificadoEn: string | null; suspendido: boolean };
 
@@ -14,6 +14,7 @@ export function Usuarios({ sesion }: { sesion: Sesion }) {
   const [mensaje, setMensaje] = useState<Mensaje>(null);
   const [alta, setAlta] = useState(false);
   const usuarios = useDatos(() => api<Usuario[]>(`/api/usuarios${consulta(filtro)}`), [filtro]);
+  const paginas = usePaginacion(usuarios.datos ?? []);
 
   const crear = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); const d = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -37,16 +38,15 @@ export function Usuarios({ sesion }: { sesion: Sesion }) {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Gestión de usuarios</h2></div>
         <div className="acciones"><button className="boton" onClick={() => void sincronizar()}>Verificar con base escolar</button><button className="boton primario" onClick={() => setAlta(true)}>Alta de personal</button></div>
       </div>
       <Aviso mensaje={mensaje ?? usuarios.error} alCerrar={() => setMensaje(null)} />
       <div className="filtros" role="search">
-        <label className="campo"><span>Nombre, matrícula/nómina o correo</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
+        <label className="campo ancho"><span>Nombre, matrícula/nómina o correo</span><input value={filtro.q} onChange={(e) => setFiltro({ ...filtro, q: e.target.value })} /></label>
         <Selector etiqueta="Rol" opciones={["Administrador", "Bibliotecario", "Alumno", "Profesor", "Colaborador"]} todos="Todos" valor={filtro.rol} alCambiar={(rol) => setFiltro({ ...filtro, rol })} />
       </div>
-      <Tabla titulo="Usuarios" columnas={["Usuario", "Rol", "Cuenta", "Base escolar", ""]} vacio="No hay usuarios con esos filtros." cantidad={usuarios.datos?.length ?? 0}>
-        {(usuarios.datos ?? []).map((u) => (
+      <Tabla titulo="Usuarios" columnas={["Usuario", "Rol", "Cuenta", "Base escolar", "Acciones"]} vacio="No hay usuarios con esos filtros." cantidad={usuarios.datos?.length ?? 0} pie={<Paginacion {...paginas} />}>
+        {paginas.visibles.map((u) => (
           <tr key={u.id}>
             <td><b>{u.nombre}</b><small>{u.identificador} · {u.correo}{u.telefono && ` · ${u.telefono}`}</small></td>
             <td>{u.rol}</td>

@@ -4,7 +4,7 @@
  * 3.3: menús por rol, navegación en máximo 3 clics) y controles de accesibilidad
  * (tamaño de letra y alto contraste).
  */
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { api, esPersonal, type Rol, type Sesion } from "../lib/api";
 import { Chatbot } from "./Chatbot";
 import { Aviso, Campo, mensajeDeError, type Mensaje } from "./ui";
@@ -84,6 +84,18 @@ export function Aplicacion() {
   const [sesion, setSesion] = useState<Sesion | null | undefined>(undefined);
   const [vista, setVista] = useState<Vista>("inicio");
   const [menuAbierto, setMenuAbierto] = useState(false);
+  const botonMenu = useRef<HTMLButtonElement>(null);
+  const menu = useRef<HTMLElement>(null);
+  const cerrarMenu = () => { setMenuAbierto(false); botonMenu.current?.focus(); };
+
+  // Menú del celular: el foco entra al abrir, Escape lo cierra y el foco vuelve al botón (WCAG 2.1.1 y 2.4.3).
+  useEffect(() => {
+    if (!menuAbierto) return;
+    menu.current?.querySelector<HTMLElement>(".menu button")?.focus();
+    const tecla = (e: KeyboardEvent) => { if (e.key === "Escape") cerrarMenu(); };
+    document.addEventListener("keydown", tecla);
+    return () => document.removeEventListener("keydown", tecla);
+  }, [menuAbierto]);
 
   useEffect(() => { void api<{ sesion: Sesion | null }>("/api/auth/sesion").then((r) => entrar(r.sesion)).catch(() => setSesion(null)); }, []);
   const entrar = (s: Sesion | null) => { setSesion(s); if (s) setVista(esPersonal(s.rol) ? "inicio" : "busqueda"); };
@@ -98,16 +110,19 @@ export function Aplicacion() {
   return (
     <div className="estructura">
       <a className="saltar" href="#contenido">Saltar al contenido</a>
-      <nav className="lateral" aria-label="Menú principal" data-abierto={menuAbierto}>
-        <div className="marca"><div className="marca-logo" aria-hidden="true">📚</div><div><strong>SIGEB</strong><span>Biblioteca · Universidad Ducky</span></div></div>
+      <div className="fondo-menu" data-abierto={menuAbierto} aria-hidden="true" onClick={cerrarMenu} />
+      <nav id="menu-principal" ref={menu} className="lateral" aria-label="Menú principal" data-abierto={menuAbierto}>
+        <div className="marca"><div className="marca-logo" aria-hidden="true">📚</div><div><strong>SIGEB</strong><span>Biblioteca · Universidad Ducky</span></div>
+          <button type="button" className="boton chico cerrar-menu" onClick={cerrarMenu} aria-label="Cerrar menú">×</button></div>
         <ul className="menu">
           {opciones.map((o) => <li key={o.vista}><button aria-current={vista === o.vista ? "page" : undefined} onClick={() => ir(o.vista)}>{o.etiqueta}</button></li>)}
         </ul>
         <div className="usuario-actual"><strong>{sesion.nombre}</strong><span>{sesion.rol} · {sesion.identificador}</span></div>
       </nav>
-      <div className="principal">
+      {/* Con el menú del celular abierto, la página de atrás no recibe foco ni clics */}
+      <div className="principal" {...(menuAbierto ? ({ inert: "" } as Record<string, string>) : {})}>
         <header className="barra">
-          <button className="boton boton-menu" aria-expanded={menuAbierto} onClick={() => setMenuAbierto((a) => !a)}>Menú</button>
+          <button ref={botonMenu} className="boton boton-menu" aria-expanded={menuAbierto} aria-controls="menu-principal" onClick={() => setMenuAbierto(true)}>☰ Menú</button>
           <h1>{titulo}</h1>
           <div className="acciones-barra"><ControlesAccesibilidad /><button className="boton chico" onClick={() => void salir()}>Cerrar sesión</button></div>
         </header>

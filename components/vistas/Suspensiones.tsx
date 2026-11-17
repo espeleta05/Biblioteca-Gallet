@@ -31,12 +31,11 @@ export function Suspensiones() {
   return (
     <>
       <div className="encabezado">
-        <div><h2>Alumnos suspendidos</h2></div>
-        <button className="boton primario" onClick={() => setNueva(true)}>Registrar suspensión</button>
+        <div className="acciones"><button className="boton primario" onClick={() => setNueva(true)}>Registrar suspensión</button></div>
       </div>
       <Aviso mensaje={mensaje ?? lista.error} alCerrar={() => setMensaje(null)} />
       <div className="filtros"><Selector etiqueta="Estado" opciones={["Activa", "Levantada"]} todos="Todas" valor={estado} alCambiar={setEstado} /></div>
-      <Tabla titulo="Suspensiones" columnas={["Persona", "Causa", "Origen", "Desde", "Servicios Escolares", ""]} vacio="No hay suspensiones con ese estado." cantidad={lista.datos?.length ?? 0}>
+      <Tabla titulo="Suspensiones" columnas={["Persona", "Causa", "Origen", "Desde", "Servicios Escolares", "Acciones"]} vacio="No hay suspensiones con ese estado." cantidad={lista.datos?.length ?? 0}>
         {(lista.datos ?? []).map((s) => (
           <tr key={s.id}>
             <td><b>{s.persona}</b><small>{s.identificador} · {s.tipo}</small></td>

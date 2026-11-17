@@ -76,7 +76,7 @@ export function Etiqueta({ color, children }: { color: "verde" | "naranja" | "ro
   return <span className={`etiqueta ${color}`}>{children}</span>;
 }
 
-export function Tabla({ titulo, columnas, vacio, children, cantidad }: { titulo: string; columnas: string[]; vacio: string; children: ReactNode; cantidad: number }) {
+export function Tabla({ titulo, columnas, vacio, children, cantidad, pie }: { titulo: string; columnas: string[]; vacio: string; children: ReactNode; cantidad: number; pie?: ReactNode }) {
   return (
     // Focusable para poder desplazar con teclado cuando la tabla no cabe (WCAG 2.1.1).
     <div className="tabla" tabIndex={0} role="region" aria-label={titulo}>
@@ -86,7 +86,70 @@ export function Tabla({ titulo, columnas, vacio, children, cantidad }: { titulo:
         <tbody>{children}</tbody>
       </table>
       {cantidad === 0 && <p className="vacio">{vacio}</p>}
+      {pie}
     </div>
+  );
+}
+
+/** Casilla de verificación con su etiqueta al lado, del tamaño de un control táctil. */
+export function Casilla({ etiqueta, marcada, alCambiar }: { etiqueta: string; marcada: boolean; alCambiar: (v: boolean) => void }) {
+  return (
+    <label className="casilla">
+      <input type="checkbox" checked={marcada} onChange={(e) => alCambiar(e.target.checked)} />
+      <span>{etiqueta}</span>
+    </label>
+  );
+}
+
+/**
+ * Pestañas con el patrón ARIA "tabs": flechas izquierda y derecha, Inicio y Fin
+ * para moverse; solo la pestaña activa entra en el orden de tabulación.
+ */
+export function Pestanas<T extends string>({ opciones, activa, alCambiar, etiqueta, children }: { opciones: Array<{ id: T; texto: string }>; activa: T; alCambiar: (id: T) => void; etiqueta: string; children: ReactNode }) {
+  const base = useId();
+  const mover = (e: React.KeyboardEvent<HTMLButtonElement>, indice: number) => {
+    const destino = e.key === "ArrowRight" ? indice + 1 : e.key === "ArrowLeft" ? indice - 1 : e.key === "Home" ? 0 : e.key === "End" ? opciones.length - 1 : null;
+    if (destino === null) return;
+    e.preventDefault();
+    const siguiente = (destino + opciones.length) % opciones.length;
+    alCambiar(opciones[siguiente].id);
+    document.getElementById(`${base}-${opciones[siguiente].id}`)?.focus();
+  };
+  return (
+    <>
+      <div className="pestanas" role="tablist" aria-label={etiqueta}>
+        {opciones.map((o, i) => (
+          <button key={o.id} id={`${base}-${o.id}`} role="tab" type="button" aria-selected={activa === o.id} aria-controls={`${base}-panel`}
+            tabIndex={activa === o.id ? 0 : -1} onClick={() => alCambiar(o.id)} onKeyDown={(e) => mover(e, i)}>{o.texto}</button>
+        ))}
+      </div>
+      <div role="tabpanel" id={`${base}-panel`} aria-labelledby={`${base}-${activa}`}>{children}</div>
+    </>
+  );
+}
+
+/** Divide una lista larga en páginas para no obligar a desplazarse por cientos de filas. */
+export function usePaginacion<T>(lista: T[], porPagina = 20) {
+  const [pagina, setPagina] = useState(1);
+  const paginas = Math.max(1, Math.ceil(lista.length / porPagina));
+  useEffect(() => { if (pagina > paginas) setPagina(1); }, [pagina, paginas]);
+  const actual = Math.min(pagina, paginas);
+  return { visibles: lista.slice((actual - 1) * porPagina, actual * porPagina), pagina: actual, paginas, total: lista.length, porPagina, setPagina };
+}
+
+export function Paginacion({ pagina, paginas, total, porPagina, setPagina }: { pagina: number; paginas: number; total: number; porPagina: number; setPagina: (p: number) => void }) {
+  if (total <= porPagina) return null;
+  const desde = (pagina - 1) * porPagina + 1;
+  const hasta = Math.min(total, pagina * porPagina);
+  return (
+    <nav className="paginacion" aria-label="Paginación">
+      <span role="status">{desde}–{hasta} de {total}</span>
+      <div className="acciones">
+        <button type="button" className="boton chico" disabled={pagina === 1} onClick={() => setPagina(pagina - 1)}>Anterior</button>
+        <span>Página {pagina} de {paginas}</span>
+        <button type="button" className="boton chico" disabled={pagina === paginas} onClick={() => setPagina(pagina + 1)}>Siguiente</button>
+      </div>
+    </nav>
   );
 }
 
