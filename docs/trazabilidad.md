@@ -32,6 +32,7 @@ SWEBOK 01 pide mantener trazabilidad. Cada requisito de la Propuesta SIGEB (secc
 | 3 | Alumnos suspendidos (exceso de multas, robo, mal uso) y aviso a Servicios Escolares | `alumnos-suspendidos` | `circulacion.test.ts` → robo / exceso; `unit/multas.test.ts` |
 | 4 | Chatbot: reglas y políticas | `chatbot`; `dominio/chatbot.ts`; `CHATBOT_REGLAS` | `unit/chatbot.test.ts`; `chatbot-y-sincronizacion.test.ts` |
 | 4 | Chatbot: préstamos vigentes, vencimientos y multas | `chatbot` → `respuestaPersonal` | `chatbot-y-sincronizacion.test.ts` |
+| 4 | Chatbot: agente con Llama 3.2 en Ollama (preguntas abiertas, información de SIGEB y búsqueda de libros; HU3-SP7) | `comun/dominio/agente.ts`; `chatbot` → `preguntarAlAgente`; `comun/integraciones.ts` → `conversarConOllama`; ADR 0003 | `unit/agente.test.ts` (modelo simulado) |
 | 4 | Chatbot en web y app | `components/Chatbot.tsx`; `app-movil/App.tsx` | Verificación manual en navegador (2026-11-13) y en un celular real con Expo Go (2026-11-15) |
 
 ## Historias de usuario (Evidencia 06) → código → pruebas

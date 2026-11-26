@@ -28,13 +28,13 @@ export class FiltroBusquedaDto {
 
 /** Condición SQL de cada criterio sobre $1. */
 const CONDICION: Record<Criterio, string> = {
-  titulo: "l.titulo ILIKE '%' || $1 || '%'",
-  autor: "EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND a.nombre_autor ILIKE '%' || $1 || '%')",
-  tema: "t.nombre_tema ILIKE '%' || $1 || '%'",
+  titulo: "sin_acentos(l.titulo) LIKE '%' || sin_acentos($1) || '%'",
+  autor: "EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND sin_acentos(a.nombre_autor) LIKE '%' || sin_acentos($1) || '%')",
+  tema: "sin_acentos(t.nombre_tema) LIKE '%' || sin_acentos($1) || '%'",
   clave: "('LIB-' || LPAD(l.id_libro::text, 4, '0') ILIKE '%' || $1 || '%' OR l.isbn LIKE replace($1, '-', '') || '%' OR EXISTS (SELECT 1 FROM EJEMPLARES x WHERE x.id_libro = l.id_libro AND x.clave_ejemplar ILIKE '%' || $1 || '%'))",
-  editorial: "ed.nombre_editorial ILIKE '%' || $1 || '%'",
+  editorial: "sin_acentos(ed.nombre_editorial) LIKE '%' || sin_acentos($1) || '%'",
 };
-const LIBRE = `(l.titulo ILIKE '%' || $1 || '%' OR l.isbn LIKE $1 || '%' OR t.nombre_tema ILIKE '%' || $1 || '%' OR ${CONDICION.autor})`;
+const LIBRE = `(sin_acentos(l.titulo) LIKE '%' || sin_acentos($1) || '%' OR l.isbn LIKE $1 || '%' OR sin_acentos(t.nombre_tema) LIKE '%' || sin_acentos($1) || '%' OR ${CONDICION.autor})`;
 
 type Resultado = { id: number; titulo: string; ubicaciones: Array<{ piso: string | null }> };
 
@@ -55,7 +55,7 @@ export class ServicioBusqueda {
         FROM LIBROS l JOIN TEMAS t ON t.id_tema = l.id_tema JOIN EDITORIALES ed ON ed.id_editorial = l.id_editorial
         WHERE ($1::text IS NULL OR ${condicion})
           AND ($2::text IS NULL OR t.nombre_tema = $2)
-          AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND a.nombre_autor ILIKE '%' || $3 || '%'))
+          AND ($3::text IS NULL OR EXISTS (SELECT 1 FROM LIBRO_AUTOR la JOIN AUTORES a ON a.id_autor = la.id_autor WHERE la.id_libro = l.id_libro AND sin_acentos(a.nombre_autor) LIKE '%' || sin_acentos($3) || '%'))
           AND ($4::text IS NULL OR EXISTS (SELECT 1 FROM EJEMPLARES x WHERE x.id_libro = l.id_libro AND x.piso = $4))
           -- HU2-SP1: un libro sin ejemplares activos ya no aparece en las búsquedas.
           AND EXISTS (SELECT 1 FROM EJEMPLARES x WHERE x.id_libro = l.id_libro AND x.estado <> 'Dado de baja')

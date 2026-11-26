@@ -1,5 +1,5 @@
 /** Clasificación de preguntas del chatbot: tabla de casos por intención. */
-import { clasificar, normalizar, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type ReglaConocimiento } from "../../comun/dominio/chatbot";
+import { clasificar, normalizar, reglaSegura, RESPUESTA_AYUDA, RESPUESTA_DESCONOCIDA, type ReglaConocimiento } from "../../comun/dominio/chatbot";
 
 const reglas: ReglaConocimiento[] = [
   { id: 1, tema: "Vigencias", palabrasClave: "cuantos dias dura vigencia plazo prestamo vence tiempo", respuesta: "5 o 10 días hábiles" },
@@ -21,6 +21,10 @@ describe("clasificar", () => {
     ["¿Tengo multas?", "personal", "mis_multas"],
     ["¿Cuánto debo?", "personal", "mis_multas"],
     ["¿Cuándo vence mi libro?", "personal", "mis_vencimientos"],
+    // Datos personales exactos: nunca los redacta el modelo de lenguaje (ADR 0003).
+    ["¿Cuándo tengo que regresar el libro que me llevé?", "personal", "mis_vencimientos"],
+    ["¿Me puedes decir hasta cuándo tengo el libro?", "personal", "mis_vencimientos"],
+    ["¿Para cuándo debo entregarlo?", "personal", "mis_vencimientos"],
     ["¿Qué libros tengo?", "personal", "mis_prestamos"],
     ["mis préstamos", "personal", "mis_prestamos"],
   ])("%s → %s %s", (pregunta, tipo, esperado) => {
@@ -51,5 +55,38 @@ describe("respuestas fijas", () => {
   });
   test("cuando no entiende, sugiere ejemplos y la palabra ayuda", () => {
     expect(RESPUESTA_DESCONOCIDA).toMatch(/"ayuda"/);
+  });
+});
+
+/**
+ * Con la base de conocimiento real (db/datos-base.sql): estas preguntas deben
+ * contestarse al instante con la regla (puntaje >= 2) y no ir al agente con Llama.
+ */
+describe("base de conocimiento real", () => {
+  const sql = require("fs").readFileSync(require("path").join(__dirname, "..", "..", "..", "db", "datos-base.sql"), "utf8") as string;
+  const reales: ReglaConocimiento[] = [...sql.matchAll(/\('([^']+)', '[^']*', '([^']+)',\s*\n\s*'([^']+)'\)/g)]
+    .map((m, i) => ({ id: i + 1, tema: m[1], palabrasClave: m[2], respuesta: m[3] }));
+
+  test("se leen las 5 reglas", () => expect(reales.map((r) => r.tema)).toEqual(["Vigencias", "Renovaciones", "Multas", "Costos de reposición", "Préstamos"]));
+  test.each([
+    // [pregunta, regla, puntaje mínimo]: con 2 o más se responde al instante; con 1 la contesta el agente con las políticas.
+    ["cuanto se cobra si un libro se pierda", "Costos de reposición", 2],
+    ["¿Qué pasa si pierdo un libro?", "Costos de reposición", 1],
+    ["Si se me pierde el libro, ¿cuánto pago?", "Costos de reposición", 1],
+  ] as const)("%s → %s (puntaje >= %i)", (pregunta, tema, minimo) => {
+    const c = clasificar(pregunta, reales);
+    expect(c).toMatchObject({ tipo: "regla", regla: { tema } });
+    expect((c as { puntaje: number }).puntaje).toBeGreaterThanOrEqual(minimo);
+  });
+
+  // Las políticas salen con su texto exacto (sin Llama) salvo que solo coincida una palabra general.
+  test.each([
+    ["¿Qué pasa si pierdo un libro?", true],
+    ["Se me rompió un libro, ¿qué hago?", true],
+    ["¿Puedo renovar mi préstamo?", true],
+    ["que dia es hoy", false],
+  ])("%s → política exacta: %s", (pregunta, segura) => {
+    const c = clasificar(pregunta, reales);
+    expect(c.tipo === "regla" && reglaSegura(c)).toBe(segura);
   });
 });

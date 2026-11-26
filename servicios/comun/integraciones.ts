@@ -9,8 +9,8 @@ import { firmarToken } from "./auth";
 
 const TIEMPO_LIMITE_MS = 2500; // RNF: respuesta total ≤ 3 s.
 
-async function pedir<T>(url: string, opciones: RequestInit = {}): Promise<T> {
-  const respuesta = await fetch(url, { ...opciones, signal: AbortSignal.timeout(TIEMPO_LIMITE_MS) });
+async function pedir<T>(url: string, opciones: RequestInit = {}, tiempoLimiteMs = TIEMPO_LIMITE_MS): Promise<T> {
+  const respuesta = await fetch(url, { ...opciones, signal: AbortSignal.timeout(tiempoLimiteMs) });
   const texto = await respuesta.text();
   if (!respuesta.ok) throw new Error(`${opciones.method ?? "GET"} ${url} respondió ${respuesta.status}: ${texto.slice(0, 200)}`);
   return (texto ? JSON.parse(texto) : {}) as T;
@@ -118,6 +118,42 @@ export async function detectarIntencionDialogflow(texto: string, idSesion: strin
   if (!intencion) return null;
   const respuesta = datos.queryResult?.responseMessages?.flatMap((m) => m.text?.text ?? []).join(" ") ?? "";
   return { intencion, respuesta };
+}
+
+// --- Llama en Ollama (agente del chatbot, ADR 0003) -------------------------
+
+export type LlamadaHerramienta = { function: { name: string; arguments: Record<string, unknown> | string } };
+export type MensajeLlm = { role: "system" | "user" | "assistant" | "tool"; content: string; tool_calls?: LlamadaHerramienta[]; tool_name?: string };
+export type HerramientaLlm = { type: "function"; function: { name: string; description: string; parameters: { type: "object"; properties: Record<string, unknown>; required?: string[] } } };
+
+/**
+ * Respuestas cortas y estables; 2048 de contexto alcanza para las reglas, los datos y una búsqueda.
+ * La precarga usa el mismo num_ctx: si cambia, Ollama vuelve a cargar el modelo.
+ */
+const OPCIONES_LLAMA = { temperature: 0.2, num_predict: 180, num_ctx: 2048 };
+/** El modelo se queda en memoria todo el día: volver a cargarlo cuesta segundos en cada primera pregunta. */
+const MANTENER_CARGADO = "24h";
+
+/** Un turno del modelo (POST /api/chat de Ollama, sin streaming). null si Ollama no está configurado. */
+export async function conversarConOllama(mensajes: MensajeLlm[], herramientas: HerramientaLlm[], maxTokens = OPCIONES_LLAMA.num_predict): Promise<MensajeLlm | null> {
+  const ol = config.ollama();
+  if (!ol) return null;
+  const datos = await pedir<{ message?: MensajeLlm }>(`${ol.url}/api/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: ol.modelo, messages: mensajes, ...(herramientas.length ? { tools: herramientas } : {}), stream: false, keep_alive: MANTENER_CARGADO,
+      options: { ...OPCIONES_LLAMA, num_predict: maxTokens },
+    }),
+  }, ol.tiempoLimiteMs);
+  return datos.message ?? null;
+}
+
+/** Carga el modelo en memoria al arrancar para que la primera pregunta no espere la carga. */
+export async function precalentarOllama(): Promise<void> {
+  const ol = config.ollama();
+  if (!ol) return;
+  await pedir(`${ol.url}/api/generate`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ model: ol.modelo, keep_alive: MANTENER_CARGADO, options: OPCIONES_LLAMA }) }, ol.tiempoLimiteMs * 3);
 }
 
 // --- Llamadas entre microservicios -----------------------------------------
